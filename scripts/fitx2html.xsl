@@ -11,7 +11,8 @@
   <!-- heart rate ranges -->
   <xsl:variable name="int_hr_1" select="125"/>
   <xsl:variable name="int_hr_2" select="150"/>
-  <xsl:variable name="int_hr_3" select="190"/>
+  <xsl:variable name="int_hr_3" select="number(//fit[1]/hist[@param='heart_rate']/c[position() = last()]/@v)"/>
+	  
 
   <!-- speed levels -->
   <xsl:variable name="int_speed_1" select="25"/>
@@ -27,10 +28,6 @@
 	<xsl:call-template name="CREATESCRIPT"/>
       </xsl:element>
     </xsl:element>
-  </xsl:template>
-
-  <xsl:template match="pie|file|dir">
-    <xsl:apply-templates/>
   </xsl:template>
 
   <xsl:template match="fit">
@@ -51,41 +48,45 @@
 	<xsl:call-template name="META_TABLE"/>
       </xsl:element>
       
-      <xsl:element name="div">
-	<xsl:attribute name="style">display:inline-block</xsl:attribute>
-	<xsl:call-template name="HR_DIAGRAM"/>
-      </xsl:element>
+      <xsl:if test="hist">
+	<xsl:element name="div">
+	  <xsl:attribute name="style">display:inline-block</xsl:attribute>
+	  <xsl:call-template name="HR_DIAGRAM"/>
+	</xsl:element>
+      </xsl:if>
     </xsl:element>
+
+    <xsl:if test="count(record) &gt; 10">
+      <xsl:element name="h2">
+	<xsl:element name="a">
+	  <xsl:attribute name="onclick">javascript:switchDisplay("lap_table")</xsl:attribute>
+	  <xsl:text>Lap Table</xsl:text>
+	</xsl:element>
+      </xsl:element>
+      <xsl:call-template name="LAP_TABLE"/>
+
+      <xsl:element name="h2">
+	<xsl:element name="a">
+	  <xsl:attribute name="onclick">javascript:switchDisplay("diagram")</xsl:attribute>
+	  <xsl:text>Diagram</xsl:text>
+	</xsl:element>
+      </xsl:element>
+      <xsl:call-template name="RECORD_DIAGRAM"/>
+
+      <xsl:element name="h2">
+	<xsl:element name="a">
+	  <xsl:attribute name="onclick">javascript:switchDisplay("record_table")</xsl:attribute>
+	  <xsl:text>Records</xsl:text>
+	</xsl:element>
+      </xsl:element>
+      <xsl:call-template name="RECORD_TABLE"/>
+      <!--
+      -->
+    </xsl:if>
     
-    <xsl:element name="h2">
-      <xsl:element name="a">
-	<xsl:attribute name="onclick">javascript:switchDisplay("lap_table")</xsl:attribute>
-	<xsl:text>Lap Table</xsl:text>
-      </xsl:element>
-    </xsl:element>
-    <xsl:call-template name="LAP_TABLE"/>
-
-    <xsl:element name="h2">
-      <xsl:element name="a">
-	<xsl:attribute name="onclick">javascript:switchDisplay("diagram")</xsl:attribute>
-	<xsl:text>Diagram</xsl:text>
-      </xsl:element>
-    </xsl:element>
-    <xsl:call-template name="RECORD_DIAGRAM"/>
-
-    <xsl:element name="h2">
-      <xsl:element name="a">
-	<xsl:attribute name="onclick">javascript:switchDisplay("record_table")</xsl:attribute>
-	<xsl:text>Records</xsl:text>
-      </xsl:element>
-    </xsl:element>
-    <xsl:call-template name="RECORD_TABLE"/>
-    <!--
-    -->
   </xsl:template>
 
   <xsl:template name="META_TABLE">
-
     <xsl:for-each select="session">
       <xsl:element name="table">
 	<xsl:attribute name="id">meta_table</xsl:attribute>
@@ -97,7 +98,8 @@
 	  </xsl:element>
 	</xsl:element>
 	<xsl:element name="tbody">
-	  <xsl:for-each select="*">
+	  <xsl:for-each select="*[not(contains(name(),'enhanced'))]">
+	    <xsl:sort select="@unit" order="descending"/>
 	    <xsl:element name="tr">
 	      <xsl:choose>
 		<xsl:when test="contains(name(),'heart')">
@@ -132,7 +134,6 @@
   </xsl:template>
 
   <xsl:template name="LAP_TABLE">
-
     <xsl:element name="table">
       <xsl:attribute name="id">lap_table</xsl:attribute>
       <xsl:attribute name="style">display:none</xsl:attribute>
@@ -386,7 +387,7 @@
 	  <xsl:for-each select="start_time|avg_heart_rate|avg_speed|max_speed|max_heart_rate|total_distance|event_type|lap_trigger">
 	    <xsl:sort select="name()"/>
 	    <xsl:element name="tspan">
-	      <xsl:attribute name="x"><xsl:value-of select="$int_x + 5"/></xsl:attribute>
+	      <xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
 	      <xsl:attribute name="dy"><xsl:value-of select="12"/></xsl:attribute>
               <xsl:value-of select="concat(name(),':', .,' [', @unit,']')"/>
 	    </xsl:element>
@@ -399,15 +400,15 @@
 
   <xsl:template name="HR_DIAGRAM">
 
-    <xsl:variable name="int_scale" select="3"/>
+    <xsl:variable name="int_scale" select="3.0"/>
     <xsl:variable name="int_width" select="200"/>
     <xsl:variable name="int_height" select="100"/>
     
     <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
       <xsl:attribute name="version">1.1</xsl:attribute>
       <xsl:attribute name="baseProfile">full</xsl:attribute>
-      <xsl:attribute name="height"><xsl:value-of select="$int_scale * $int_height"/></xsl:attribute>
-      <xsl:attribute name="width"><xsl:value-of select="$int_scale * $int_width"/></xsl:attribute>
+      <xsl:attribute name="height"><xsl:value-of select="$int_height * $int_scale"/></xsl:attribute>
+      <xsl:attribute name="width"><xsl:value-of select="$int_width * $int_scale"/></xsl:attribute>
       <xsl:attribute name="id">hr_diagram</xsl:attribute>
 
       <xsl:element name="style">
@@ -420,86 +421,84 @@
 	  <xsl:value-of select="concat('scale(',$int_scale,')')"/>
 	</xsl:attribute>
 
-	<xsl:element name="rect">
-	  <xsl:attribute name="fill">#ccffcc</xsl:attribute>
-	  <xsl:attribute name="x"><xsl:value-of select="$int_hr_1"/></xsl:attribute>
-	  <xsl:attribute name="y"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="height"><xsl:value-of select="$int_height"/></xsl:attribute>
-	  <xsl:attribute name="width"><xsl:value-of select="$int_hr_2 - $int_hr_1"/></xsl:attribute>
-	  <xsl:element name="title">
-	    <xsl:value-of select="concat('Endurance zone: ', $int_hr_1, ' .. ', $int_hr_2)"/>
-	  </xsl:element>
-	</xsl:element>
-	
-	<xsl:element name="rect">
-	  <xsl:attribute name="fill">#ffcccc</xsl:attribute>
-	  <xsl:attribute name="x"><xsl:value-of select="$int_hr_2"/></xsl:attribute>
-	  <xsl:attribute name="y"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="height"><xsl:value-of select="$int_height"/></xsl:attribute>
-	  <xsl:attribute name="width"><xsl:value-of select="$int_hr_3 - $int_hr_2"/></xsl:attribute>
-	  <xsl:element name="title">
-	    <xsl:value-of select="concat('Red zone: ', $int_hr_2, ' .. ', $int_hr_3)"/>
-	  </xsl:element>
-	</xsl:element>
-
-	<xsl:element name="line">
-	  <xsl:attribute name="stroke">black</xsl:attribute>
-	  <xsl:attribute name="stroke-width">.5</xsl:attribute>
-	  <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="y1"><xsl:value-of select="$int_height"/></xsl:attribute>
-	  <xsl:attribute name="x2"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="y2"><xsl:value-of select="0"/></xsl:attribute>
-	</xsl:element>
-
-	<xsl:element name="line">
-	  <xsl:attribute name="stroke">black</xsl:attribute>
-	  <xsl:attribute name="stroke-width">.25</xsl:attribute>
-	  <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="y1"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
-	  <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
-	  <xsl:attribute name="y2"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
-	</xsl:element>
-
-	<xsl:element name="line">
-	  <xsl:attribute name="stroke">black</xsl:attribute>
-	  <xsl:attribute name="stroke-width">.5</xsl:attribute>
-	  <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-	  <xsl:attribute name="y1"><xsl:value-of select="$int_height"/></xsl:attribute>
-	  <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
-	  <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
-	</xsl:element>
-
-	<!--
-	<xsl:element name="ellipse">
-	  <xsl:attribute name="stroke">#ffaaaa</xsl:attribute>
-	    <xsl:attribute name="fill">transparent</xsl:attribute>
-	  <xsl:attribute name="cx"><xsl:value-of select="$int_hr_2"/></xsl:attribute>
-	  <xsl:attribute name="cy"><xsl:value-of select="$int_height * (1.0 - 0.66)"/></xsl:attribute>
-	  <xsl:attribute name="rx"><xsl:value-of select="5"/></xsl:attribute>
-	  <xsl:attribute name="ry"><xsl:value-of select="15"/></xsl:attribute>
-	</xsl:element>
-	-->
-	
 	<xsl:for-each select="hist[@param='heart_rate']">
 	  
+	  <xsl:variable name="int_hr_min" select="number(c[1]/@v)"/>
+	  
+	  <xsl:variable name="int_hr_scale" select="$int_width div ($int_hr_3 - $int_hr_min)"/>
+	  
+	  <xsl:variable name="int_bar_width" select="c[2]/@v - c[1]/@v"/>
+	  
+	  <xsl:element name="rect">
+	    <xsl:attribute name="fill">#ccffcc</xsl:attribute>
+	    <xsl:attribute name="x"><xsl:value-of select="($int_hr_1 - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:attribute name="y"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="height"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:attribute name="width"><xsl:value-of select="($int_hr_2 - $int_hr_1) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('Endurance zone: ', $int_hr_1, ' .. ', $int_hr_2)"/>
+	    </xsl:element>
+	  </xsl:element>
+	  
+	  <xsl:element name="rect">
+	    <xsl:attribute name="fill">#ffcccc</xsl:attribute>
+	    <xsl:attribute name="x"><xsl:value-of select="($int_hr_2 - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:attribute name="y"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="height"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:attribute name="width"><xsl:value-of select="($int_hr_3 - $int_hr_2) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('Red zone: ', $int_hr_2, ' .. ', $int_hr_3)"/>
+	    </xsl:element>
+	  </xsl:element>
+
 	  <xsl:element name="line">
 	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.25</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="$int_hr_min"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('HR Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+	    </xsl:element>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">black</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.25</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">black</xsl:attribute>
 	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
-	    <xsl:attribute name="x1"><xsl:value-of select="number(@median)"/></xsl:attribute>
-	    <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
-	    <xsl:attribute name="x2"><xsl:value-of select="number(@median)"/></xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
-	      <xsl:element name="title">
-		<xsl:value-of select="concat('HR median.: ',number(@median))"/>
-	      </xsl:element>
 	  </xsl:element>
 
 	  <xsl:element name="line">
 	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
 	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
-	    <xsl:attribute name="x1"><xsl:value-of select="number(@max)"/></xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="(number(@median) - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
 	    <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
-	    <xsl:attribute name="x2"><xsl:value-of select="number(@max)"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="(number(@median) - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('HR median.: ',number(@median))"/>
+	    </xsl:element>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="(number(@max) - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="(number(@max) - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
 	      <xsl:element name="title">
 		<xsl:value-of select="concat('HR max.: ',number(@max))"/>
@@ -507,9 +506,22 @@
 	  </xsl:element>
 
 	  <xsl:for-each select="child::c">
-	    <xsl:variable name="int_x" select="number(@v) * 10"/>
+	    <xsl:variable name="int_x" select="(number(@v) - $int_hr_min) * $int_hr_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
 	    
+	    <xsl:if test="number(.) &gt; 0.01">
+	      <xsl:element name="rect">
+		<xsl:attribute name="fill">#ff8888</xsl:attribute>
+		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
+		<xsl:attribute name="y"><xsl:value-of select="$int_height - $int_y"/></xsl:attribute>
+		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
+		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_hr_scale"/></xsl:attribute>
+		<xsl:element name="title">
+		  <xsl:value-of select="concat('HR Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+		</xsl:element>
+	      </xsl:element>
+	    </xsl:if>
+
 	    <xsl:element name="line">
 	      <xsl:attribute name="stroke">rgb(128,128,128)</xsl:attribute>
 	      <xsl:attribute name="stroke-width">.25</xsl:attribute>
@@ -519,30 +531,6 @@
 	      <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
 	    </xsl:element>
 
-	    <xsl:if test="number(.) &gt; 0.01">
-	      <xsl:element name="rect">
-		<xsl:attribute name="fill">#ff8888</xsl:attribute>
-		<xsl:attribute name="x"><xsl:value-of select="$int_x - 4"/></xsl:attribute>
-		<xsl:attribute name="y"><xsl:value-of select="$int_height - $int_y"/></xsl:attribute>
-		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
-		<xsl:attribute name="width"><xsl:value-of select="8"/></xsl:attribute>
-		<xsl:element name="title">
-		  <xsl:value-of select="concat('HR Zone: ', number(@v) * 10, ' ', number(.) * 100,'%')"/>
-		</xsl:element>
-	      </xsl:element>
-	    </xsl:if>
-
-	    <xsl:if test="number(@v) * 10 = $int_hr_2">
-	      <xsl:element name="line">
-		<xsl:attribute name="stroke">#ff0000</xsl:attribute>
-		<xsl:attribute name="stroke-width">.25</xsl:attribute>
-		<xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-		<xsl:attribute name="y1"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
-		<xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
-		<xsl:attribute name="y2"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
-	      </xsl:element>
-	    </xsl:if>
-
 	    <xsl:element name="circle">
 	      <xsl:attribute name="stroke">#ff0000</xsl:attribute>
 	      <xsl:attribute name="stroke-width">1</xsl:attribute>
@@ -550,7 +538,7 @@
 	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat(@sum * 100,'% &lt; ',number(@v) * 10 + 5)"/>
+		<xsl:value-of select="concat(@sum * 100,'% &lt; ',number(@v))"/>
 	      </xsl:element>
 	    </xsl:element>
 
@@ -715,6 +703,4 @@ function switchDisplay(strId) {
   </xsl:element>
 </xsl:template>
 
-<xsl:template match="*"/>
-  
 </xsl:stylesheet>

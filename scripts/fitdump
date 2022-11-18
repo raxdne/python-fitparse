@@ -128,13 +128,14 @@ def generate_stat_xml(records, stat, t0, filename=None):
         if 'unknown' in message.name:
             pass
         else:
-            hr = 0
+            hr = 0.0
+            td = datetime.timedelta(seconds=0)
             strResult = '  <{}>\n'.format(message.name)
 
             for field_data in message:
 
                 if field_data.value == None or 'unknown' in field_data.name:
-                    pass
+                    continue
                 elif (field_data.name == "timestamp" or field_data.name == "start_time") and type(field_data.value) == datetime.datetime:
                     t = field_data.value.time()
                     td = field_data.value - t0
@@ -146,26 +147,19 @@ def generate_stat_xml(records, stat, t0, filename=None):
                     strResult += '  <{n} unit="{u}">{v:.2f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                 elif 'km' in field_data.units:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
-                else:
-                    if field_data.name == 'heart_rate':
-                        hr = field_data.value
+                elif field_data.name == 'heart_rate':
+                    hr = field_data.value
                     strResult += '  <{n} unit="{u}">{v}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
 
             strResult += '  </{}>\n'.format(message.name)
-
-            # now collect some data for statitistics
             
-            if hr > 40 and hr < 220:
+            # now collect some data for statitistics
+
+            if td.total_seconds() > 0 and hr > 40:
                 # add number of seconds, because of variable data rate
-                s = round(td.total_seconds())
-                if s < 1 or s > 9:
-                    s = 1
-                stat[0] += s
-                stat[1] += s * hr
-                if hr > stat[2]:
-                    stat[2] = hr
-                stat[round(hr / 10.0)] += s
-                    
+                for i in range(int(td.total_seconds())):
+                    stat.append(hr)
+
             yield strResult
 
 
@@ -173,16 +167,23 @@ def generate_xml_stat(stat):
 
     """ statistics XML output """
 
-    if stat[0] > 10:
+    if len(stat) < 10:
+        strResult = '  <!-- no usable data -->'
+    else:
+        from statistics import mean, median
+        import numpy as np
+        # for one dimensional data
+        (hist, bin_edges) = np.histogram(stat, bins=range(100,210,5))
+
+        s = len(stat)
         v_sum = 0.0
-        strResult = '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('heart_rate',stat[0],'yes', round(stat[1] / stat[0]), round(stat[2]))
-        for c in range(4,len(stat)):
-            v = stat[c] / stat[0]
-            v_sum += v
-            strResult += '    <c v="{}" sum="{:.02f}">{:.03f}</c>\n'.format(c,v_sum,v)
+        strResult = '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('heart_rate', len(stat), 'yes', round(mean(stat)), max(stat))
+        for i in range(0,len(bin_edges)-1):
+            strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
+            v_sum += hist[i]
         strResult += '  </hist>\n'
         
-        yield strResult
+    yield strResult
 
         
 def generate_gpx(records, filename=None):
@@ -291,7 +292,7 @@ def main(args=None):
                 format_csv(n, record, options) for n, record in enumerate(records, 1)
             )
         elif options.type == "xml":
-            stat = [0.0] * 22
+            stat = []
 
             # header + open tags
             options.output.writelines('<?xml version="1.0"?>\n')
