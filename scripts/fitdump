@@ -116,7 +116,7 @@ class RecordJSONEncoder(json.JSONEncoder):
         return super(RecordJSONEncoder, self).default(obj)
 
 
-def generate_stat_xml(records, stat, t0, filename=None):
+def generate_stat_xml(records, stat_hr, stat_v, t0, filename=None):
 
     """ generic XML output """
 
@@ -128,6 +128,7 @@ def generate_stat_xml(records, stat, t0, filename=None):
         if 'unknown' in message.name:
             pass
         else:
+            v = 0.0
             hr = 0.0
             td = datetime.timedelta(seconds=0)
             strResult = '  <{}>\n'.format(message.name)
@@ -141,47 +142,66 @@ def generate_stat_xml(records, stat, t0, filename=None):
                     td = field_data.value - t0
                     t0 = field_data.value
                     strResult += '  <{n} sec="{s}" delta="{d}">{v}</{n}>\n'.format(n=field_data.name, s=(t.hour * 3600 + t.minute * 60 + t.second), d = round(td.total_seconds()), v=field_data.value.strftime(GPX_TIME_FMT))
+                elif field_data.name == 'speed':
+                    v = field_data.value
+                    strResult += '  <{n} unit="{u}">{v}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
+                elif field_data.name == 'heart_rate':
+                    hr = field_data.value
+                    strResult += '  <{n} unit="{u}">{v}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                 elif field_data.units == None:
                     strResult += '  <{n}>{v}</{n}>\n'.format(n=field_data.name, v=field_data.value)
                 elif field_data.units == 'm':
                     strResult += '  <{n} unit="{u}">{v:.2f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                 elif 'km' in field_data.units:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
-                elif field_data.name == 'heart_rate':
-                    hr = field_data.value
-                    strResult += '  <{n} unit="{u}">{v}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
 
             strResult += '  </{}>\n'.format(message.name)
             
-            # now collect some data for statitistics
-
-            if td.total_seconds() > 0 and hr > 40:
-                # add number of seconds, because of variable data rate
-                for i in range(int(td.total_seconds())):
-                    stat.append(hr)
-
             yield strResult
 
+            # now collect some data for statitistics
 
-def generate_xml_stat(stat):
+            if td.total_seconds() > 0:
+                if hr > 40:
+                    # add number of seconds, because of variable data rate
+                    for i in range(int(td.total_seconds())):
+                        stat_hr.append(hr)
+                if v > 0.1:
+                    for i in range(int(td.total_seconds())):
+                        stat_v.append(v)
+
+
+def generate_xml_stat(stat_hr, stat_v):
 
     """ statistics XML output """
 
-    if len(stat) < 10:
+    if len(stat_hr) < 10:
         strResult = '  <!-- no usable data -->'
     else:
         from statistics import mean, median
         import numpy as np
         # for one dimensional data
-        (hist, bin_edges) = np.histogram(stat, bins=range(100,210,5))
+        (hist, bin_edges) = np.histogram(stat_hr, bins=range(100,210,5))
 
-        s = len(stat)
-        v_sum = 0.0
-        strResult = '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('heart_rate', len(stat), 'yes', round(mean(stat)), max(stat))
-        for i in range(0,len(bin_edges)-1):
-            strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
-            v_sum += hist[i]
-        strResult += '  </hist>\n'
+        s = len(stat_hr)
+        if s > 10:
+            v_sum = 0.0
+            strResult = '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('heart_rate', len(stat_hr), 'yes', round(mean(stat_hr)), max(stat_hr))
+            for i in range(0,len(bin_edges)-1):
+                strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
+                v_sum += hist[i]
+            strResult += '  </hist>\n'
+        
+        (hist, bin_edges) = np.histogram(stat_v, bins=range(0,60,1))
+
+        s = len(stat_v)
+        if s > 10:
+            v_sum = 0.0
+            strResult += '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('speed', len(stat_v), 'yes', round(mean(stat_v)), max(stat_v))
+            for i in range(0,len(bin_edges)-1):
+                strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
+                v_sum += hist[i]
+            strResult += '  </hist>\n'
         
     yield strResult
 
@@ -292,7 +312,8 @@ def main(args=None):
                 format_csv(n, record, options) for n, record in enumerate(records, 1)
             )
         elif options.type == "xml":
-            stat = []
+            stat_hr = []
+            stat_v = []
 
             # header + open tags
             options.output.writelines('<?xml version="1.0"?>\n')
@@ -305,8 +326,8 @@ def main(args=None):
                 options.output.writelines('<fit>\n')
 
             t0 = datetime.datetime.utcnow()
-            options.output.writelines(generate_stat_xml(records, stat, t0, filename))
-            options.output.writelines(generate_xml_stat(stat))
+            options.output.writelines(generate_stat_xml(records, stat_hr, stat_v, t0, filename))
+            options.output.writelines(generate_xml_stat(stat_hr, stat_v))
             options.output.writelines('</fit>\n')
         elif options.type == "gpx":
             filename = getattr(options.infile, "name")

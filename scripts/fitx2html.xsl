@@ -15,8 +15,9 @@
 	  
 
   <!-- speed levels -->
-  <xsl:variable name="int_speed_1" select="25"/>
-  <xsl:variable name="int_speed_2" select="50"/>
+  <xsl:variable name="int_v_1" select="25"/>
+  <xsl:variable name="int_v_2" select="50"/>
+  <xsl:variable name="int_v_3" select="number(//fit[1]/hist[@param='speed']/c[position() = last()]/@v)"/>
 
   <xsl:decimal-format name="f1" grouping-separator="." decimal-separator=","/>
   
@@ -48,7 +49,7 @@
 	<xsl:call-template name="META_TABLE"/>
       </xsl:element>
       
-      <xsl:if test="hist">
+      <xsl:if test="hist[@param='heart_rate']">
 	<xsl:element name="div">
 	  <xsl:attribute name="style">display:inline-block</xsl:attribute>
 	  <xsl:call-template name="HR_DIAGRAM"/>
@@ -56,6 +57,17 @@
       </xsl:if>
     </xsl:element>
 
+    <xsl:if test="hist[@param='speed']">
+      <xsl:element name="h2">
+	<xsl:element name="a">
+	  <xsl:attribute name="onclick">javascript:switchDisplay("v_diagram")</xsl:attribute>
+	  <xsl:text>Speed Diagram</xsl:text>
+	</xsl:element>
+      </xsl:element>
+
+      <xsl:call-template name="SPEED_DIAGRAM"/>
+    </xsl:if>
+    
     <xsl:if test="count(record) &gt; 10">
       <xsl:element name="h2">
 	<xsl:element name="a">
@@ -247,18 +259,18 @@
 	<xsl:attribute name="stroke">#ccccff</xsl:attribute>
 	<xsl:attribute name="stroke-width">.5</xsl:attribute>
 	<xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-	<xsl:attribute name="y1"><xsl:value-of select="$int_height - ($int_speed_1 * 2)"/></xsl:attribute>
+	<xsl:attribute name="y1"><xsl:value-of select="$int_height - ($int_v_1 * 2)"/></xsl:attribute>
 	<xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
-	<xsl:attribute name="y2"><xsl:value-of select="$int_height - ($int_speed_1 * 2)"/></xsl:attribute>
+	<xsl:attribute name="y2"><xsl:value-of select="$int_height - ($int_v_1 * 2)"/></xsl:attribute>
       </xsl:element>
 
       <xsl:element name="line">
 	<xsl:attribute name="stroke">#ccccff</xsl:attribute>
 	<xsl:attribute name="stroke-width">.5</xsl:attribute>
 	<xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
-	<xsl:attribute name="y1"><xsl:value-of select="$int_height - ($int_speed_2 * 2)"/></xsl:attribute>
+	<xsl:attribute name="y1"><xsl:value-of select="$int_height - ($int_v_2 * 2)"/></xsl:attribute>
 	<xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
-	<xsl:attribute name="y2"><xsl:value-of select="$int_height - ($int_speed_2 * 2)"/></xsl:attribute>
+	<xsl:attribute name="y2"><xsl:value-of select="$int_height - ($int_v_2 * 2)"/></xsl:attribute>
       </xsl:element>
 
       <xsl:for-each select="//altitude">
@@ -327,7 +339,7 @@
 	    <xsl:attribute name="y1"><xsl:value-of select="$int_height"/></xsl:attribute>
 	    <xsl:attribute name="x2"><xsl:value-of select="$int_x"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_y"/></xsl:attribute>
-	    <xsl:if test="number(.) &gt; $int_speed_1">
+	    <xsl:if test="number(.) &gt; $int_v_1">
 	      <xsl:element name="title">
 		<xsl:value-of select="."/>
 	      </xsl:element>
@@ -410,11 +422,6 @@
       <xsl:attribute name="height"><xsl:value-of select="$int_height * $int_scale"/></xsl:attribute>
       <xsl:attribute name="width"><xsl:value-of select="$int_width * $int_scale"/></xsl:attribute>
       <xsl:attribute name="id">hr_diagram</xsl:attribute>
-
-      <xsl:element name="style">
-	<xsl:attribute name="type">text/css</xsl:attribute>
-	<xsl:text>svg { font-family: Arial; font-size: 8pt;}</xsl:text>
-      </xsl:element>
 
       <xsl:element name="g">
 	<xsl:attribute name="transform">
@@ -525,6 +532,138 @@
 	    <xsl:element name="line">
 	      <xsl:attribute name="stroke">rgb(128,128,128)</xsl:attribute>
 	      <xsl:attribute name="stroke-width">.25</xsl:attribute>
+	      <xsl:attribute name="x1"><xsl:value-of select="$int_x"/></xsl:attribute>
+	      <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
+	      <xsl:attribute name="x2"><xsl:value-of select="$int_x"/></xsl:attribute>
+	      <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    </xsl:element>
+
+	    <xsl:element name="circle">
+	      <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	      <xsl:attribute name="stroke-width">1</xsl:attribute>
+	      <xsl:attribute name="cx"><xsl:value-of select="$int_x"/></xsl:attribute>
+	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
+	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
+	      <xsl:element name="title">
+		<xsl:value-of select="concat(@sum * 100,'% &lt; ',number(@v))"/>
+	      </xsl:element>
+	    </xsl:element>
+
+	  </xsl:for-each>
+	</xsl:for-each>
+      </xsl:element>
+    </xsl:element>
+  </xsl:template>
+
+  <xsl:template name="SPEED_DIAGRAM">
+
+    <xsl:variable name="int_scale" select="3.0"/>
+    <xsl:variable name="int_width" select="300"/>
+    <xsl:variable name="int_height" select="100"/>
+    
+    <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
+      <xsl:attribute name="version">1.1</xsl:attribute>
+      <xsl:attribute name="baseProfile">full</xsl:attribute>
+      <xsl:attribute name="height"><xsl:value-of select="$int_height * $int_scale"/></xsl:attribute>
+      <xsl:attribute name="width"><xsl:value-of select="$int_width * $int_scale"/></xsl:attribute>
+      <xsl:attribute name="id">v_diagram</xsl:attribute>
+
+      <xsl:element name="g">
+	<xsl:attribute name="transform">
+	  <xsl:value-of select="concat('scale(',$int_scale,')')"/>
+	</xsl:attribute>
+
+	<xsl:for-each select="hist[@param='speed']">
+	  
+	  <xsl:variable name="int_v_min" select="number(c[1]/@v)"/>
+	  
+	  <xsl:variable name="int_v_scale" select="$int_width div ($int_v_3 - $int_v_min)"/>
+	  
+	  <xsl:variable name="int_bar_width" select="c[2]/@v - c[1]/@v"/>
+	  
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.25</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="$int_v_min"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('V Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+	    </xsl:element>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">black</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.25</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height * 0.5"/></xsl:attribute>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">black</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="(number(@median) - $int_v_min) * $int_v_scale"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="(number(@median) - $int_v_min) * $int_v_scale"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
+	    <xsl:element name="title">
+	      <xsl:value-of select="concat('V median.: ',number(@median))"/>
+	    </xsl:element>
+	  </xsl:element>
+
+	  <xsl:element name="line">
+	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
+	    <xsl:attribute name="stroke-width">.5</xsl:attribute>
+	    <xsl:attribute name="x1"><xsl:value-of select="(number(@max) - $int_v_min) * $int_v_scale"/></xsl:attribute>
+	    <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
+	    <xsl:attribute name="x2"><xsl:value-of select="(number(@max) - $int_v_min) * $int_v_scale"/></xsl:attribute>
+	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
+	      <xsl:element name="title">
+		<xsl:value-of select="concat('V max.: ',number(@max))"/>
+	      </xsl:element>
+	  </xsl:element>
+
+	  <xsl:for-each select="child::c">
+	    <xsl:variable name="int_x" select="(number(@v) - $int_v_min) * $int_v_scale"/>
+	    <xsl:variable name="int_y" select="number(.) * 100"/>
+	    
+	    <xsl:if test="number(.) &gt; 0.01">
+	      <xsl:element name="rect">
+		<xsl:attribute name="fill">#aaaaaa</xsl:attribute>
+		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
+		<xsl:attribute name="y"><xsl:value-of select="$int_height - $int_y"/></xsl:attribute>
+		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
+		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_v_scale"/></xsl:attribute>
+		<xsl:element name="title">
+		  <xsl:value-of select="concat('V Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+		</xsl:element>
+	      </xsl:element>
+	    </xsl:if>
+
+	    <xsl:element name="line">
+	      <xsl:attribute name="stroke">rgb(128,128,128)</xsl:attribute>
+	      <xsl:attribute name="stroke-width">
+		<xsl:choose>
+		  <xsl:when test="@v mod 10 = 0">
+		    <xsl:text>.5</xsl:text>
+		  </xsl:when>
+		  <xsl:otherwise>
+		    <xsl:text>.25</xsl:text>
+		  </xsl:otherwise>
+		</xsl:choose>
+ 	      </xsl:attribute>
 	      <xsl:attribute name="x1"><xsl:value-of select="$int_x"/></xsl:attribute>
 	      <xsl:attribute name="y1"><xsl:value-of select="0"/></xsl:attribute>
 	      <xsl:attribute name="x2"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -675,7 +814,14 @@ pre {
   border-radius: 3px;
 }
 
-   </xsl:element>
+svg {
+  font-family: Arial; font-size: 8pt;
+}
+
+#v_diagram {
+  display:block;
+}
+    </xsl:element>
 </xsl:template>
 
 <xsl:template name="CREATESCRIPT">
