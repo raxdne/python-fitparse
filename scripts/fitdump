@@ -154,6 +154,8 @@ def generate_stat_xml(records, stat_hr, stat_v, t0, filename=None):
                     strResult += '  <{n} unit="{u}">{v:.2f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                 elif 'km' in field_data.units:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
+                else:
+                    strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
 
             strResult += '  </{}>\n'.format(message.name)
             
@@ -178,15 +180,15 @@ def generate_xml_stat(stat_hr, stat_v):
     if len(stat_hr) < 10:
         strResult = '  <!-- no usable data -->'
     else:
-        from statistics import mean, median
         import numpy as np
+
         # for one dimensional data
         (hist, bin_edges) = np.histogram(stat_hr, bins=range(100,210,5))
 
         s = len(stat_hr)
         if s > 10:
             v_sum = 0.0
-            strResult = '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('heart_rate', len(stat_hr), 'yes', round(mean(stat_hr)), max(stat_hr))
+            strResult = '  <hist param="{}" count="{}" norm="{}" median="{:.1f}" max="{:.1f}">\n'.format('heart_rate', len(stat_hr), 'yes', np.mean(stat_hr), max(stat_hr))
             for i in range(0,len(bin_edges)-1):
                 strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
                 v_sum += hist[i]
@@ -197,7 +199,7 @@ def generate_xml_stat(stat_hr, stat_v):
         s = len(stat_v)
         if s > 10:
             v_sum = 0.0
-            strResult += '  <hist param="{}" count="{}" norm="{}" median="{}" max="{}">\n'.format('speed', len(stat_v), 'yes', round(mean(stat_v)), max(stat_v))
+            strResult += '  <hist param="{}" count="{}" norm="{}" median="{:.1f}" max="{:.1f}">\n'.format('speed', len(stat_v), 'yes', np.mean(stat_v), max(stat_v))
             for i in range(0,len(bin_edges)-1):
                 strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
                 v_sum += hist[i]

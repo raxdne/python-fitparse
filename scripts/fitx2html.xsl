@@ -38,7 +38,7 @@
 
     <xsl:element name="h2">
       <xsl:element name="a">
-	<xsl:text>Meta &amp; Heart Rate Diagram</xsl:text>
+	<xsl:text>Meta Data &amp; Heart Rate Histogram</xsl:text>
       </xsl:element>
     </xsl:element>
 
@@ -52,7 +52,7 @@
       <xsl:if test="hist[@param='heart_rate']">
 	<xsl:element name="div">
 	  <xsl:attribute name="style">display:inline-block</xsl:attribute>
-	  <xsl:call-template name="HR_DIAGRAM"/>
+	  <xsl:call-template name="HR_HISTOGRAM"/>
 	</xsl:element>
       </xsl:if>
     </xsl:element>
@@ -60,12 +60,12 @@
     <xsl:if test="hist[@param='speed']">
       <xsl:element name="h2">
 	<xsl:element name="a">
-	  <xsl:attribute name="onclick">javascript:switchDisplay("v_diagram")</xsl:attribute>
-	  <xsl:text>Speed Diagram</xsl:text>
+	  <xsl:attribute name="onclick">javascript:switchDisplay("v_histogram")</xsl:attribute>
+	  <xsl:text>Speed Histogram</xsl:text>
 	</xsl:element>
       </xsl:element>
 
-      <xsl:call-template name="SPEED_DIAGRAM"/>
+      <xsl:call-template name="SPEED_HISTOGRAM"/>
     </xsl:if>
     
     <xsl:if test="count(record) &gt; 10">
@@ -148,7 +148,7 @@
   <xsl:template name="LAP_TABLE">
     <xsl:element name="table">
       <xsl:attribute name="id">lap_table</xsl:attribute>
-      <xsl:attribute name="style">display:none</xsl:attribute>
+      <xsl:attribute name="style">display:block</xsl:attribute>
       <xsl:element name="tbody">
 	<xsl:for-each select="lap">
 	  <xsl:if test="position()=1">
@@ -226,12 +226,6 @@
       <xsl:attribute name="height"><xsl:value-of select="$int_height"/></xsl:attribute>
       <xsl:attribute name="width"><xsl:value-of select="$int_width"/></xsl:attribute>
       <xsl:attribute name="id">diagram</xsl:attribute>
-      <xsl:attribute name="style">display:none</xsl:attribute>
-
-      <xsl:element name="style">
-	<xsl:attribute name="type">text/css</xsl:attribute>
-	<xsl:text>svg { font-family: Arial; font-size: 8pt;}</xsl:text>
-      </xsl:element>
 
       <xsl:element name="rect">
 	<xsl:attribute name="fill">#ffcccc</xsl:attribute>
@@ -410,7 +404,7 @@
     </xsl:element>
   </xsl:template>
 
-  <xsl:template name="HR_DIAGRAM">
+  <xsl:template name="HR_HISTOGRAM">
 
     <xsl:variable name="int_scale" select="3.0"/>
     <xsl:variable name="int_width" select="200"/>
@@ -421,7 +415,7 @@
       <xsl:attribute name="baseProfile">full</xsl:attribute>
       <xsl:attribute name="height"><xsl:value-of select="$int_height * $int_scale"/></xsl:attribute>
       <xsl:attribute name="width"><xsl:value-of select="$int_width * $int_scale"/></xsl:attribute>
-      <xsl:attribute name="id">hr_diagram</xsl:attribute>
+      <xsl:attribute name="id">hr_histogram</xsl:attribute>
 
       <xsl:element name="g">
 	<xsl:attribute name="transform">
@@ -555,7 +549,7 @@
     </xsl:element>
   </xsl:template>
 
-  <xsl:template name="SPEED_DIAGRAM">
+  <xsl:template name="SPEED_HISTOGRAM">
 
     <xsl:variable name="int_scale" select="3.0"/>
     <xsl:variable name="int_width" select="300"/>
@@ -566,7 +560,7 @@
       <xsl:attribute name="baseProfile">full</xsl:attribute>
       <xsl:attribute name="height"><xsl:value-of select="$int_height * $int_scale"/></xsl:attribute>
       <xsl:attribute name="width"><xsl:value-of select="$int_width * $int_scale"/></xsl:attribute>
-      <xsl:attribute name="id">v_diagram</xsl:attribute>
+      <xsl:attribute name="id">v_histogram</xsl:attribute>
 
       <xsl:element name="g">
 	<xsl:attribute name="transform">
@@ -816,9 +810,10 @@ pre {
 
 svg {
   font-family: Arial; font-size: 8pt;
+  display:none;
 }
 
-#v_diagram {
+#v_histogram, #hr_histogram {
   display:block;
 }
     </xsl:element>
