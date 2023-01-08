@@ -183,25 +183,26 @@ def generate_xml_stat(stat_hr, stat_v):
         import numpy as np
 
         # for one dimensional data
-        (hist, bin_edges) = np.histogram(stat_hr, bins=range(100,210,5))
+        #(hist, bin_edges) = np.histogram(stat_hr, bins=range(0,round(max(stat_hr)*1.1),5))
+        (hist, bin_edges) = np.histogram(stat_hr, bins=range(75,225,5))
 
         s = len(stat_hr)
         if s > 10:
             v_sum = 0.0
             strResult = '  <hist param="{}" count="{}" norm="{}" median="{:.1f}" max="{:.1f}">\n'.format('heart_rate', len(stat_hr), 'yes', np.mean(stat_hr), max(stat_hr))
             for i in range(0,len(bin_edges)-1):
-                strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
+                strResult += '    <c v="{}" sum="{:.3f}">{:.3f}</c>\n'.format(int(bin_edges[i]), 1.0 - v_sum / s, hist[i] / s)
                 v_sum += hist[i]
             strResult += '  </hist>\n'
         
-        (hist, bin_edges) = np.histogram(stat_v, bins=range(0,60,1))
+        (hist, bin_edges) = np.histogram(stat_v, bins=range(0,round(max(stat_v)*1.1),1))
 
         s = len(stat_v)
         if s > 10:
             v_sum = 0.0
             strResult += '  <hist param="{}" count="{}" norm="{}" median="{:.1f}" max="{:.1f}">\n'.format('speed', len(stat_v), 'yes', np.mean(stat_v), max(stat_v))
             for i in range(0,len(bin_edges)-1):
-                strResult += '    <c v="{}" sum="{:.2f}">{:.3f}</c>\n'.format(int(bin_edges[i]), v_sum / s, hist[i] / s)
+                strResult += '    <c v="{}" sum="{:.3f}">{:.3f}</c>\n'.format(int(bin_edges[i]), 1.0 - v_sum / s, hist[i] / s)
                 v_sum += hist[i]
             strResult += '  </hist>\n'
         

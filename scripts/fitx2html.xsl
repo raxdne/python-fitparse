@@ -5,21 +5,86 @@
 
   <xsl:output method="html" encoding="utf-8"/>
 
-  <!-- diagram height -->
-  <xsl:variable name="int_height" select="900"/>
+  <!-- intervals -->
+  
+  <xsl:variable name="int_p0" select="1"/> <!-- first record position -->
+  
+  <xsl:variable name="int_p1" select="0"/> <!-- last record position -->
 
+  <xsl:variable name="int_t0" select="//fit[1]/descendant::record[position() = $int_p0]/timestamp/@sec"/> <!-- start second -->
+  
+  <xsl:variable name="int_tmax" select="$int_t0 + 4 * 3600"/> <!-- max seconds -->
+  
+  <xsl:variable name="int_t1"> <!-- stop second -->
+    <xsl:choose>
+      <xsl:when test="//fit[1]/descendant::record[position() = last()]/timestamp/@sec &lt; $int_t0">
+	<!-- new day -->
+        <xsl:value-of select="$int_tmax"/>
+      </xsl:when>
+      <xsl:when test="$int_p1 &gt; 0 and //fit[1]/descendant::record[position() = $int_p1]/timestamp/@sec &lt; $int_tmax">
+        <xsl:value-of select="//fit[1]/descendant::record[position() = $int_p1]/timestamp/@sec"/>
+      </xsl:when>
+      <xsl:when test="//fit[1]/descendant::record[position() = last()]/timestamp/@sec &lt; $int_tmax">
+        <xsl:value-of select="//fit[1]/descendant::record[position() = last()]/timestamp/@sec"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="$int_tmax"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+  
+  <xsl:variable name="int_timer"> <!-- timer seconds -->
+    <xsl:choose>
+      <xsl:when test="//fit[1]/session/total_timer_time">
+        <xsl:value-of select="//fit[1]/session/total_timer_time"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="0"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+  
   <!-- heart rate ranges -->
+
   <xsl:variable name="int_hr_1" select="125"/>
+
   <xsl:variable name="int_hr_2" select="150"/>
-  <xsl:variable name="int_hr_3" select="number(//fit[1]/hist[@param='heart_rate']/c[position() = last()]/@v)"/>
-	  
+
+  <xsl:variable name="int_hr_3">
+    <xsl:choose>
+      <xsl:when test="//fit[1]/hist[@param='heart_rate']/c[position() = last()]/@v">
+        <xsl:value-of select="number(//fit[1]/hist[@param='heart_rate']/c[position() = last()]/@v)"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="200"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
 
   <!-- speed levels -->
-  <xsl:variable name="int_v_1" select="25"/>
-  <xsl:variable name="int_v_2" select="50"/>
-  <xsl:variable name="int_v_3" select="number(//fit[1]/hist[@param='speed']/c[position() = last()]/@v)"/>
 
-  <xsl:decimal-format name="f1" grouping-separator="." decimal-separator=","/>
+  <xsl:variable name="int_v_1" select="25"/>
+
+  <xsl:variable name="int_v_2" select="50"/>
+
+  <xsl:variable name="int_v_3">
+    <xsl:choose>
+      <xsl:when test="//fit[1]/hist[@param='speed']/c[position() = last()]/@v">
+        <xsl:value-of select="number(//fit[1]/hist[@param='speed']/c[position() = last()]/@v)"/>
+      </xsl:when>
+      <xsl:otherwise>
+        <xsl:value-of select="70"/>
+      </xsl:otherwise>
+    </xsl:choose>
+  </xsl:variable>
+
+  <xsl:variable name="int_height" select="900"/> <!-- diagram height -->
+
+  <xsl:decimal-format name="f1" grouping-separator="," decimal-separator="."/>
+  
+  <xsl:decimal-format name="s1" grouping-separator="," decimal-separator="."/>
+  
+  <xsl:decimal-format name="t1" grouping-separator="," />
   
   <xsl:template match="/">
     <xsl:element name="html">
@@ -36,6 +101,26 @@
       <xsl:value-of select="@src"/>
     </xsl:element>
 
+    <xsl:comment>
+      <xsl:value-of select="concat('Timer: ',$int_timer,' s = ')"/>
+      <xsl:call-template name="ISOTIME">
+	<xsl:with-param name="s" select="$int_timer"/>
+      </xsl:call-template>
+      <xsl:value-of select="concat('','&#10;')"/>
+      <xsl:value-of select="concat('Range of records: [',$int_p0,' : ',$int_p1,']','&#10;')"/>
+      <xsl:value-of select="concat('Resulting time interval [s]: [',$int_t0,' : ',$int_t1,']',' ≌ ')"/>
+      <xsl:call-template name="ISOTIME">
+	<xsl:with-param name="s" select="$int_t0"/>
+      </xsl:call-template>
+      <xsl:value-of select="concat(' .. ','')"/>
+      <xsl:call-template name="ISOTIME">
+	<xsl:with-param name="s" select="$int_t1"/>
+      </xsl:call-template>
+      <xsl:value-of select="concat('','&#10;')"/>
+      <xsl:value-of select="concat('Heart rate values [bpm]: ',$int_hr_1,', ',$int_hr_2,', ',$int_hr_3,'&#10;')"/>
+      <xsl:value-of select="concat('Speed values [km/h]: ',$int_v_1,', ',$int_v_2,', ',$int_v_3,'&#10;')"/>
+    </xsl:comment>
+    
     <xsl:element name="h2">
       <xsl:element name="a">
 	<xsl:text>Meta Data &amp; Heart Rate Histogram</xsl:text>
@@ -133,7 +218,29 @@
 		<xsl:value-of select="name()"/>
 	      </xsl:element>
 	      <xsl:element name="td">
-		<xsl:value-of select="."/> <!-- format-number(.,'#,##','f1') -->
+		<xsl:choose>
+		  <xsl:when test="contains(name(),'heart')">
+		    <xsl:value-of select="format-number(.,'###','f1')"/> <!--  -->
+		  </xsl:when>
+		  <xsl:when test="contains(name(),'speed')">
+		    <xsl:value-of select="."/>
+		  </xsl:when>
+		  <xsl:when test="contains(name(),'time') and @sec">
+		    <xsl:value-of select="."/>
+		  </xsl:when>
+		  <xsl:when test="contains(name(),'time') and @unit = 's'">
+		    <xsl:value-of select="concat(.,' ≌ ')"/>
+		    <xsl:call-template name="ISOTIME">
+		      <xsl:with-param name="s" select="."/>
+		    </xsl:call-template>
+		  </xsl:when>
+		  <xsl:when test="contains(name(),'distance')">
+		    <xsl:value-of select="format-number(.,'###,###','s1')"/> <!--  -->
+		  </xsl:when>
+		  <xsl:otherwise>
+		    <xsl:value-of select="."/>
+		  </xsl:otherwise>
+		</xsl:choose>
 	      </xsl:element>
 	      <xsl:element name="td">
 		<xsl:value-of select="@unit"/>
@@ -169,7 +276,7 @@
 	    <xsl:for-each select="start_time|avg_heart_rate|avg_speed|max_speed|max_heart_rate|total_distance">
 	      <xsl:sort select="name()"/>
 	      <xsl:element name="td">
-		<xsl:value-of select="."/> <!-- format-number(.,'#,##','f1') -->
+		<xsl:value-of select="."/> <!-- format-number(.,'#.##','f1') -->
 	      </xsl:element>
 	    </xsl:for-each>
 	  </xsl:element>
@@ -179,7 +286,6 @@
   </xsl:template>
 
   <xsl:template name="RECORD_TABLE">
-
     <xsl:element name="table">
       <xsl:attribute name="id">record_table</xsl:attribute>
       <xsl:attribute name="style">display:none</xsl:attribute>
@@ -199,7 +305,7 @@
               <xsl:value-of select="position()"/>
 	    </xsl:element>
 	    <xsl:element name="td">
-              <xsl:value-of select="number(timestamp/@sec) - number(../record[1]/timestamp/@sec)"/>
+              <xsl:value-of select="timestamp/@sec - $int_t0"/>
 	    </xsl:element>
 	    <xsl:element name="td">
               <xsl:value-of select="distance"/>
@@ -218,7 +324,7 @@
 
   <xsl:template name="RECORD_DIAGRAM">
 
-    <xsl:variable name="int_width" select="record[position() = last()]/timestamp/@sec - record[1]/timestamp/@sec + 200"/>
+    <xsl:variable name="int_width" select="$int_t1 - $int_t0 + 100"/>
     
     <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
       <xsl:attribute name="version">1.1</xsl:attribute>
@@ -227,6 +333,10 @@
       <xsl:attribute name="width"><xsl:value-of select="$int_width"/></xsl:attribute>
       <xsl:attribute name="id">diagram</xsl:attribute>
 
+      <xsl:element name="title">
+	<xsl:value-of select="concat('Diagram: ', $int_t0, 's .. ', $int_t1,'s')"/>
+      </xsl:element>
+      
       <xsl:element name="rect">
 	<xsl:attribute name="fill">#ffcccc</xsl:attribute>
 	<xsl:attribute name="x"><xsl:value-of select="0"/></xsl:attribute>
@@ -320,8 +430,8 @@
 	<xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
       </xsl:element>
 
-      <xsl:for-each select="record">
-	<xsl:variable name="int_x" select="number(timestamp/@sec) - number(../record[1]/timestamp/@sec)"/>
+      <xsl:for-each select="record[timestamp/@sec &gt; $int_t0 and timestamp/@sec &lt; $int_t1]">
+	<xsl:variable name="int_x" select="timestamp/@sec - $int_t0"/>
 	
 	<xsl:for-each select="speed">
 	  <xsl:variable name="int_y" select="$int_height - format-number(. * 2,'#,')"/>
@@ -370,8 +480,8 @@
 	
       </xsl:for-each>
 
-      <xsl:for-each select="lap">
-	<xsl:variable name="int_x" select="number(timestamp/@sec) - number(../record[1]/timestamp/@sec)"/>
+      <xsl:for-each select="lap[timestamp/@sec &gt; $int_t0 and timestamp/@sec &lt; $int_t1]">
+	<xsl:variable name="int_x" select="timestamp/@sec - $int_t0"/>
 	
 	<xsl:element name="line">
 	  <xsl:attribute name="stroke">black</xsl:attribute>
@@ -510,7 +620,7 @@
 	    <xsl:variable name="int_x" select="(number(@v) - $int_hr_min) * $int_hr_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
 	    
-	    <xsl:if test="number(.) &gt; 0.01">
+	    <xsl:if test="number(.) &gt; 0.001">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#ff8888</xsl:attribute>
 		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -518,7 +628,10 @@
 		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
 		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_hr_scale"/></xsl:attribute>
 		<xsl:element name="title">
-		  <xsl:value-of select="concat('HR Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+		  <xsl:value-of select="concat('HR = ', number(@v), ' bpm: ', format-number(number(.) * 100,'##.#','f1'),'%  ≌ ')"/>
+		  <xsl:call-template name="ISOTIME">
+		    <xsl:with-param name="s" select="number(.) * $int_timer"/>
+		  </xsl:call-template>
 		</xsl:element>
 	      </xsl:element>
 	    </xsl:if>
@@ -539,7 +652,10 @@
 	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat(@sum * 100,'% &lt; ',number(@v))"/>
+		<xsl:value-of select="concat('HR &gt; ',number(@v),' bpm: ',format-number(@sum * 100,'##.#','f1'),'%  ≌ ')"/>
+		<xsl:call-template name="ISOTIME">
+		  <xsl:with-param name="s" select="@sum * $int_timer"/>
+		</xsl:call-template>
 	      </xsl:element>
 	    </xsl:element>
 
@@ -583,7 +699,7 @@
 	    <xsl:attribute name="x2"><xsl:value-of select="$int_width"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	    <xsl:element name="title">
-	      <xsl:value-of select="concat('V Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+	      <xsl:value-of select="concat('v ', number(@v), ' km/h: ', number(.),'%')"/>
 	    </xsl:element>
 	  </xsl:element>
 
@@ -613,7 +729,7 @@
 	    <xsl:attribute name="x2"><xsl:value-of select="(number(@median) - $int_v_min) * $int_v_scale"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
 	    <xsl:element name="title">
-	      <xsl:value-of select="concat('V median.: ',number(@median))"/>
+	      <xsl:value-of select="concat('v median. km/h: ',format-number(number(@median),'##.#','f1'))"/>
 	    </xsl:element>
 	  </xsl:element>
 
@@ -625,7 +741,7 @@
 	    <xsl:attribute name="x2"><xsl:value-of select="(number(@max) - $int_v_min) * $int_v_scale"/></xsl:attribute>
 	    <xsl:attribute name="y2"><xsl:value-of select="$int_height"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat('V max.: ',number(@max))"/>
+		<xsl:value-of select="concat('v max. km/h: ',format-number(number(@max),'##.#','f1'))"/>
 	      </xsl:element>
 	  </xsl:element>
 
@@ -633,7 +749,7 @@
 	    <xsl:variable name="int_x" select="(number(@v) - $int_v_min) * $int_v_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
 	    
-	    <xsl:if test="number(.) &gt; 0.01">
+	    <xsl:if test="number(.) &gt; 0.001">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#aaaaaa</xsl:attribute>
 		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -641,7 +757,10 @@
 		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
 		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_v_scale"/></xsl:attribute>
 		<xsl:element name="title">
-		  <xsl:value-of select="concat('V Zone: ', number(@v), ' ', number(.) * 100,'%')"/>
+		  <xsl:value-of select="concat('v = ', number(@v), ' km/h: ', format-number(number(.) * 100,'##.#','f1'),'%  ≌ ')"/>
+		  <xsl:call-template name="ISOTIME">
+		    <xsl:with-param name="s" select="number(.) * $int_timer"/>
+		  </xsl:call-template>
 		</xsl:element>
 	      </xsl:element>
 	    </xsl:if>
@@ -671,7 +790,10 @@
 	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat(@sum * 100,'% &lt; ',number(@v))"/>
+		<xsl:value-of select="concat('v &gt; ',number(@v),' km/h: ',format-number(@sum * 100,'##.#','f1'),'%  ≌ ')"/>
+		<xsl:call-template name="ISOTIME">
+		  <xsl:with-param name="s" select="@sum * $int_timer"/>
+		</xsl:call-template>
 	      </xsl:element>
 	    </xsl:element>
 
@@ -679,6 +801,11 @@
 	</xsl:for-each>
       </xsl:element>
     </xsl:element>
+  </xsl:template>
+
+  <xsl:template name="ISOTIME">
+    <xsl:param name="s" select="0"/>
+    <xsl:value-of select="concat(format-number(floor($s div 3600.0),'00','t1'),':',format-number(floor(($s mod 3600) div 60.0),'00','t1'),':',format-number($s mod 60,'00','t1'),' h')"/>
   </xsl:template>
 
   <xsl:template name="VRULE_DIAGRAM">
