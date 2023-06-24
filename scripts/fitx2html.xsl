@@ -620,7 +620,7 @@
 	    <xsl:variable name="int_x" select="(number(@v) - $int_hr_min) * $int_hr_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
 	    
-	    <xsl:if test="number(.) &gt; 0.001">
+	    <xsl:if test="@n &gt; 0">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#ff8888</xsl:attribute>
 		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -628,9 +628,9 @@
 		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
 		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_hr_scale"/></xsl:attribute>
 		<xsl:element name="title">
-		  <xsl:value-of select="concat('HR = ', number(@v), ' bpm: ', format-number(number(.) * 100,'##.#','f1'),'%  ≌ ')"/>
+		  <xsl:value-of select="concat('HR = ', number(@v), ' bpm: ', format-number(number(.) * 100.0,'###','f1'),'%  ≌ ')"/>
 		  <xsl:call-template name="ISOTIME">
-		    <xsl:with-param name="s" select="number(.) * $int_timer"/>
+		    <xsl:with-param name="s" select="number(@n)"/>
 		  </xsl:call-template>
 		</xsl:element>
 	      </xsl:element>
@@ -652,7 +652,7 @@
 	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat('HR &gt; ',number(@v),' bpm: ',format-number(@sum * 100,'##.#','f1'),'%  ≌ ')"/>
+		<xsl:value-of select="concat('HR ≥ ',number(@v),' bpm: ',format-number(@sum * 100.0,'###','f1'),'%  ≌ ')"/>
 		<xsl:call-template name="ISOTIME">
 		  <xsl:with-param name="s" select="@sum * $int_timer"/>
 		</xsl:call-template>
@@ -749,7 +749,7 @@
 	    <xsl:variable name="int_x" select="(number(@v) - $int_v_min) * $int_v_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
 	    
-	    <xsl:if test="number(.) &gt; 0.001">
+	    <xsl:if test="@n &gt; 0">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#aaaaaa</xsl:attribute>
 		<xsl:attribute name="x"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -757,9 +757,9 @@
 		<xsl:attribute name="height"><xsl:value-of select="$int_y"/></xsl:attribute>
 		<xsl:attribute name="width"><xsl:value-of select="$int_bar_width * $int_v_scale"/></xsl:attribute>
 		<xsl:element name="title">
-		  <xsl:value-of select="concat('v = ', number(@v), ' km/h: ', format-number(number(.) * 100,'##.#','f1'),'%  ≌ ')"/>
+		  <xsl:value-of select="concat('v = ', number(@v), ' km/h: ', format-number(number(.) * 100.0,'###','f1'),'%  ≌ ')"/>
 		  <xsl:call-template name="ISOTIME">
-		    <xsl:with-param name="s" select="number(.) * $int_timer"/>
+		    <xsl:with-param name="s" select="number(@n)"/>
 		  </xsl:call-template>
 		</xsl:element>
 	      </xsl:element>
@@ -790,7 +790,7 @@
 	      <xsl:attribute name="cy"><xsl:value-of select="$int_height - (@sum * 100)"/></xsl:attribute>
 	      <xsl:attribute name="r"><xsl:value-of select=".5"/></xsl:attribute>
 	      <xsl:element name="title">
-		<xsl:value-of select="concat('v &gt; ',number(@v),' km/h: ',format-number(@sum * 100,'##.#','f1'),'%  ≌ ')"/>
+		<xsl:value-of select="concat('v ≥ ',number(@v),' km/h: ',format-number(@sum * 100.0,'###','f1'),'%  ≌ ')"/>
 		<xsl:call-template name="ISOTIME">
 		  <xsl:with-param name="s" select="@sum * $int_timer"/>
 		</xsl:call-template>
@@ -805,7 +805,17 @@
 
   <xsl:template name="ISOTIME">
     <xsl:param name="s" select="0"/>
-    <xsl:value-of select="concat(format-number(floor($s div 3600.0),'00','t1'),':',format-number(floor(($s mod 3600) div 60.0),'00','t1'),':',format-number($s mod 60,'00','t1'),' h')"/>
+    <xsl:choose>
+      <xsl:when test="$s &lt; 60">
+	<xsl:value-of select="concat(format-number($s,'0','t1'),' s')"/>
+      </xsl:when>
+      <xsl:when test="$s &lt; 3600">
+	<xsl:value-of select="concat(format-number(floor($s div 60.0),'0','t1'),':',format-number($s mod 60,'00','t1'),' min')"/>
+      </xsl:when>
+      <xsl:otherwise>
+	<xsl:value-of select="concat(format-number(floor($s div 3600.0),'0','t1'),':',format-number(floor(($s mod 3600) div 60.0),'00','t1'),':',format-number($s mod 60,'00','t1'),' h')"/>
+      </xsl:otherwise>
+    </xsl:choose>
   </xsl:template>
 
   <xsl:template name="VRULE_DIAGRAM">
