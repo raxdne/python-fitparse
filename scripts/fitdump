@@ -122,7 +122,8 @@ def generate_stat_xml(records, stat_hr, stat_speed, t0, filename=None):
             hr = 0
             td = datetime.timedelta(seconds=0)
             strResult = '  <{}>\n'.format(message.name)
-
+            fError = False
+            
             for field_data in message:
 
                 if field_data.value == None or 'unknown' in field_data.name:
@@ -131,6 +132,9 @@ def generate_stat_xml(records, stat_hr, stat_speed, t0, filename=None):
                     t = field_data.value.time()
                     td = field_data.value - t0
                     t0 = field_data.value
+                    if (td.total_seconds() < 0 or td.total_seconds() > 60) and message.name == 'record':
+                        strResult += '<!-- error: timedelta {} to large -->\n'.format(td.total_seconds())
+                        fError = True
                     strResult += '  <{n} sec="{s}" delta="{d}">{v}</{n}>\n'.format(n=field_data.name, s=(t.hour * 3600 + t.minute * 60 + t.second), d = round(td.total_seconds()), v=field_data.value.strftime(GPX_TIME_FMT))
                 elif field_data.name == 'speed':
                     speed = round(field_data.value,1)
@@ -149,9 +153,11 @@ def generate_stat_xml(records, stat_hr, stat_speed, t0, filename=None):
 
             strResult += '  </{}>\n'.format(message.name)
 
-            # now collect some data for statitistics
-
-            if td.total_seconds() > 0:
+            if fError:
+                stat_hr.clear()
+                stat_speed.clear()
+            else:
+                # now collect some data for statitistics
                 if hr > 40:
                     # add number of seconds, because of variable data rate
                     #for i in range(round(td.total_seconds())-1):
@@ -169,6 +175,7 @@ def generate_stat_xml(records, stat_hr, stat_speed, t0, filename=None):
                         stat_speed.append(speed)
 
             yield strResult
+
 
 def generate_xml_stat(stat_hr, stat_speed):
 
