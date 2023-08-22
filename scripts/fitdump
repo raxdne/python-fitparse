@@ -18,6 +18,13 @@ import fitparse
 t_c = 60
 hr_threshold_up   = 170
 hr_threshold_down = 150
+hr_threshold_break = 120
+
+stat_hr = []
+stat_hr_intervals = []
+stat_hr_breaks = []
+stat_speed = []
+
 
 def format_csv(num, message, options):
 
@@ -109,14 +116,16 @@ class RecordJSONEncoder(json.JSONEncoder):
         return super().default(obj)
 
 
-def generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename=None):
+def generate_xml(records, filename=None):
 
     """ generic XML output """
 
     GPX_TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"  # ISO 8601 format
 
     records = iter(records)
+    t_0 = datetime.datetime.utcnow()
     t_i = 0
+    t_b = 0
 
     for message in records:
         if 'unknown' in message.name:
@@ -134,8 +143,8 @@ def generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename
                     continue
                 elif (field_data.name == "timestamp" or field_data.name == "start_time") and type(field_data.value) == datetime.datetime:
                     t = field_data.value.time()
-                    td = field_data.value - t0
-                    t0 = field_data.value
+                    td = field_data.value - t_0
+                    t_0 = field_data.value
                     if (td.total_seconds() < 0 or td.total_seconds() > 60) and message.name == 'record':
                         strResult += '<!-- error: timedelta {} to large -->\n'.format(td.total_seconds())
                         fError = True
@@ -159,7 +168,7 @@ def generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename
 
             if fError:
                 stat_hr.clear()
-                stat_hr_blocks.clear()
+                stat_hr_intervals.clear()
                 stat_speed.clear()
             else:
                 # now collect some data for statitistics
@@ -173,8 +182,16 @@ def generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename
                         t_i += round(td.total_seconds())
                     elif t_i > 0:
                         # block is finished
-                        stat_hr_blocks.append(t_i)
+                        stat_hr_intervals.append(t_i)
                         t_i = 0
+
+                    if hr < hr_threshold_break:
+                        # count this values
+                        t_b += round(td.total_seconds())
+                    elif t_b > 0:
+                        # block is finished
+                        stat_hr_breaks.append(t_b)
+                        t_b = 0
 
                 if speed > 0.1:
                     for i in range(round(td.total_seconds())):
@@ -183,7 +200,7 @@ def generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename
             yield strResult
 
 
-def generate_xml_stat(stat_hr, stat_hr_blocks, stat_speed):
+def generate_xml_stat():
 
     """ statistics XML output """
 
@@ -192,15 +209,33 @@ def generate_xml_stat(stat_hr, stat_hr_blocks, stat_speed):
     else:
 
         strResult = ''
-        a_blocks = np.array(stat_hr_blocks)
-        n = len(a_blocks)
-        #print(f'info: {stat_hr_blocks}', file=sys.stderr)
+        a_intervals = np.array(stat_hr_intervals)
+        n = len(a_intervals)
+        #print(f'info: {stat_hr_intervals}', file=sys.stderr)
         if n > 0:
             # for one dimensional data
-            (hist, bin_edges) = np.histogram(a_blocks, bins=np.arange(0,a_blocks.max() + 2 * t_c,t_c))
+            (hist, bin_edges) = np.histogram(a_intervals, bins=np.arange(0,a_intervals.max() + 3 * t_c,t_c))
 
             v_sum = 0.0
-            strResult += '  <hist param="{}" count="{}" sum="{}" norm="{}" min="{:.1f}" max="{:.1f}" hr_1="{}" hr_2="{}">\n'.format('heart_rate_blocks', len(a_blocks), a_blocks.sum(), 'no', a_blocks.min(), a_blocks.max(),hr_threshold_up,hr_threshold_down)
+            strResult += '  <hist param="{}" count="{}" sum="{}" norm="{}" min="{:.1f}" max="{:.1f}" hr_1="{}" hr_2="{}">\n'.format('heart_rate_intervals', len(a_intervals), a_intervals.sum(), 'no', a_intervals.min(), a_intervals.max(),hr_threshold_up,hr_threshold_down)
+            for i in range(len(bin_edges)-1):
+                strResult += '    <c v="{}">{}</c>\n'.format(int(bin_edges[i]), hist[i])
+                v_sum += hist[i]
+            strResult += '  </hist>\n'
+
+            #print(f'info: {strResult}', file=sys.stderr)
+            yield strResult
+                    
+        strResult = ''
+        a_breaks = np.array(stat_hr_breaks)
+        n = len(a_breaks)
+        #print(f'info: {stat_hr_breaks}', file=sys.stderr)
+        if n > 0:
+            # for one dimensional data
+            (hist, bin_edges) = np.histogram(a_breaks, bins=np.arange(0,a_breaks.max() + 3 * t_c,t_c))
+
+            v_sum = 0.0
+            strResult += '  <hist param="{}" count="{}" sum="{}" norm="{}" min="{:.1f}" max="{:.1f}" hr_0="{}">\n'.format('heart_rate_breaks', len(a_breaks), a_breaks.sum(), 'no', a_breaks.min(), a_breaks.max(), hr_threshold_break)
             for i in range(len(bin_edges)-1):
                 strResult += '    <c v="{}">{}</c>\n'.format(int(bin_edges[i]), hist[i])
                 v_sum += hist[i]
@@ -348,10 +383,6 @@ def main(args=None):
                 format_csv(n, record, options) for n, record in enumerate(records, 1)
             )
         elif options.type == "xml":
-            stat_hr = []
-            stat_hr_blocks = []
-            stat_speed = []
-
             # header + open tags
             options.output.writelines('<?xml version="1.0"?>\n')
             #options.output.writelines('<?xml-stylesheet type="text/xsl" href="fit2html.xsl"?>\n')
@@ -362,9 +393,8 @@ def main(args=None):
             else:
                 options.output.writelines('<fit>\n')
 
-            t0 = datetime.datetime.utcnow()
-            options.output.writelines(generate_stat_xml(records, stat_hr, stat_hr_blocks, stat_speed, t0, filename))
-            options.output.writelines(generate_xml_stat(stat_hr, stat_hr_blocks, stat_speed))
+            options.output.writelines(generate_xml(records, filename))
+            options.output.writelines(generate_xml_stat())
             options.output.writelines('</fit>\n')
         elif options.type == "gpx":
             filename = getattr(options.infile, "name")
