@@ -17,10 +17,11 @@ import fitparse
 
 t_c = 60
 hr_threshold_up   = 170
-hr_threshold_down = 150
+hr_threshold_down = 165
 hr_threshold_break = 120
 
 stat_hr = []
+stat_intervals = []
 stat_hr_intervals = []
 stat_hr_breaks = []
 stat_speed = []
@@ -123,9 +124,12 @@ def generate_xml(records, filename=None):
     GPX_TIME_FMT = "%Y-%m-%dT%H:%M:%SZ"  # ISO 8601 format
 
     records = iter(records)
+    s = 0.0
     t_0 = datetime.datetime.utcnow()
     t_i = 0
     t_b = 0
+    i_i = []
+    hr_i_max = 0
 
     for message in records:
         if 'unknown' in message.name:
@@ -161,6 +165,8 @@ def generate_xml(records, filename=None):
                     strResult += '  <{n} unit="{u}">{v:.2f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                 elif 'km' in field_data.units:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
+                    if field_data.name == 'distance':
+                        s = field_data.value
                 else:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
 
@@ -180,10 +186,24 @@ def generate_xml(records, filename=None):
                     if hr >= hr_threshold_up or (t_i > 0 and hr >= hr_threshold_down):
                         # count this values
                         t_i += round(td.total_seconds())
+                        if len(i_i) < 1:
+                            # start new interval
+                            i_i.append((t.hour * 3600 + t.minute * 60 + t.second))
+                            i_i.append(s)
+                            hr_i_max = 0
+                        if hr > hr_i_max:
+                            hr_i_max = hr
                     elif t_i > 0:
                         # block is finished
                         stat_hr_intervals.append(t_i)
                         t_i = 0
+                        # end current interval
+                        i_i.append((t.hour * 3600 + t.minute * 60 + t.second))
+                        i_i.append(s)
+                        i_i.append(hr_i_max)
+                        stat_intervals.append(i_i)
+                        i_i = []
+                        hr_i_max = 0
 
                     if hr < hr_threshold_break:
                         # count this values
@@ -208,6 +228,19 @@ def generate_xml_stat():
         strResult = '  <!-- no usable data -->'
     else:
 
+        #print(f'info: {stat_intervals}', file=sys.stderr)
+        if len(stat_intervals) > 0:
+            strTmp = ''
+            d_t = 0
+            d_s = 0.0
+            for i in stat_intervals:
+                strTmp += '  <interval t_0="{}" s_0="{:.3f}" t_1="{}" s_1="{:.3f}" hr_max="{}" v="{:.1f}"/>\n'.format(i[0], i[1], i[2], i[3], i[4], 3600.0 * (i[3] - i[1]) / (i[2] - i[0]))
+                d_t += i[2] - i[0]
+                d_s += i[3] - i[1]
+                
+            strResult = f'<intervals id="intervals" d_t="{d_t}" d_s="{d_s}">\n{strTmp}</intervals>\n'
+            yield strResult
+            
         strResult = ''
         a_intervals = np.array(stat_hr_intervals)
         n = len(a_intervals)
@@ -232,7 +265,7 @@ def generate_xml_stat():
         #print(f'info: {stat_hr_breaks}', file=sys.stderr)
         if n > 0:
             # for one dimensional data
-            (hist, bin_edges) = np.histogram(a_breaks, bins=np.arange(0,a_breaks.max() + 3 * t_c,t_c))
+            (hist, bin_edges) = np.histogram(a_breaks, bins=np.arange(t_c,a_breaks.max() + 3 * t_c,t_c))
 
             v_sum = 0.0
             strResult += '  <hist param="{}" count="{}" sum="{}" norm="{}" min="{:.1f}" max="{:.1f}" hr_0="{}">\n'.format('heart_rate_breaks', len(a_breaks), a_breaks.sum(), 'no', a_breaks.min(), a_breaks.max(), hr_threshold_break)
