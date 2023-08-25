@@ -211,7 +211,7 @@
       </xsl:element>
       <xsl:element name="div">
 	<xsl:attribute name="id">intervals</xsl:attribute>
-	<xsl:attribute name="style">display:none</xsl:attribute>
+	<xsl:attribute name="style">display:inline-block</xsl:attribute>
 	<xsl:call-template name="INTERVAL_TABLE"/>
 	<!-- 
 	<xsl:call-template name="HR_INTERVALS"/>
@@ -666,9 +666,22 @@
 	  <xsl:element name="tr">
 	    <xsl:element name="th">#</xsl:element>
 	    <xsl:element name="th">time</xsl:element>
-	    <xsl:element name="th">max_heart_rate [bpm]</xsl:element>
-	    <xsl:element name="th">interval_distance [km]</xsl:element>
-	    <xsl:element name="th">avg_speed [km/h]</xsl:element>
+	    <xsl:element name="th">
+	      <xsl:attribute name="class">heart</xsl:attribute>
+	      <xsl:text>max_heart_rate [bpm]</xsl:text>
+	    </xsl:element>
+	    <xsl:element name="th">
+	      <xsl:attribute name="class">distance</xsl:attribute>
+	      <xsl:text>interval_distance [km]</xsl:text>
+	    </xsl:element>
+	    <xsl:element name="th">
+	      <xsl:attribute name="class">altitude</xsl:attribute>
+	      <xsl:text>∑ altitude [m]</xsl:text>
+	    </xsl:element>
+	    <xsl:element name="th">
+	      <xsl:attribute name="class">speed</xsl:attribute>
+	      <xsl:text>avg_speed [km/h]</xsl:text>
+	    </xsl:element>
 	  </xsl:element>
 	</xsl:element>
 	<xsl:element name="tbody">
@@ -689,6 +702,9 @@
 		<xsl:value-of select="format-number(@s_1 - @s_0,'##0.00','s1')"/>
 	      </xsl:element>
 	      <xsl:element name="td">
+		<xsl:value-of select="format-number(@d_a,'##0.0','s1')"/>
+	      </xsl:element>
+	      <xsl:element name="td">
 		<xsl:value-of select="format-number(@v,'##0.0','s1')"/>
 	      </xsl:element>
 	    </xsl:element>
@@ -705,6 +721,8 @@
 	      </xsl:element>
 	      <xsl:element name="th">
 		<xsl:value-of select="format-number(@d_s,'##0.00','s1')"/>
+	      </xsl:element>
+	      <xsl:element name="th">
 	      </xsl:element>
 	      <xsl:element name="th">
 	      </xsl:element>
@@ -1164,16 +1182,17 @@ tr {
   text-align:right;
   vertical-align:top;
 }
-tr.heart {
+
+*.heart {
   background-color:#ffcccc;
 }
-tr.speed {
+*.speed {
   background-color:#ccccff;
 }
-tr.time {
+*.time {
   background-color:#cccccc;
 }
-tr.altitude {
+zhuj*.altitude {
   background-color:#00ff00;
 }
 

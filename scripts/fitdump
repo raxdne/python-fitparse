@@ -126,6 +126,9 @@ def generate_xml(records, filename=None):
     records = iter(records)
     s = 0.0
     t_0 = datetime.datetime.utcnow()
+    a_i = 0
+    a_j = 0
+    d_a = 0
     t_i = 0
     t_b = 0
     i_i = []
@@ -163,6 +166,8 @@ def generate_xml(records, filename=None):
                     strResult += '  <{n}>{v}</{n}>\n'.format(n=field_data.name, v=field_data.value)
                 elif field_data.units == 'm':
                     strResult += '  <{n} unit="{u}">{v:.2f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
+                    if field_data.name == 'altitude':
+                        a_i = field_data.value
                 elif 'km' in field_data.units:
                     strResult += '  <{n} unit="{u}">{v:.3f}</{n}>\n'.format(n=field_data.name, u=field_data.units, v=field_data.value)
                     if field_data.name == 'distance':
@@ -186,6 +191,9 @@ def generate_xml(records, filename=None):
                     if hr >= hr_threshold_up or (t_i > 0 and hr >= hr_threshold_down):
                         # count this values
                         t_i += round(td.total_seconds())
+                        if a_j > 0:
+                            d_a += a_i - a_j
+                        a_j = a_i
                         if len(i_i) < 1:
                             # start new interval
                             i_i.append((t.hour * 3600 + t.minute * 60 + t.second))
@@ -196,14 +204,17 @@ def generate_xml(records, filename=None):
                     elif t_i > 0:
                         # block is finished
                         stat_hr_intervals.append(t_i)
-                        t_i = 0
                         # end current interval
                         i_i.append((t.hour * 3600 + t.minute * 60 + t.second))
                         i_i.append(s)
                         i_i.append(hr_i_max)
+                        i_i.append(d_a)
                         stat_intervals.append(i_i)
+                        t_i = 0
                         i_i = []
                         hr_i_max = 0
+                        a_j = 0
+                        d_a = 0
 
                     if hr < hr_threshold_break:
                         # count this values
@@ -234,7 +245,7 @@ def generate_xml_stat():
             d_t = 0
             d_s = 0.0
             for i in stat_intervals:
-                strTmp += '  <interval t_0="{}" s_0="{:.3f}" t_1="{}" s_1="{:.3f}" hr_max="{}" v="{:.1f}"/>\n'.format(i[0], i[1], i[2], i[3], i[4], 3600.0 * (i[3] - i[1]) / (i[2] - i[0]))
+                strTmp += '  <interval t_0="{}" s_0="{:.3f}" t_1="{}" s_1="{:.3f}" hr_max="{}" v="{:.1f}" d_a="{:.0f}"/>\n'.format(i[0], i[1], i[2], i[3], i[4], 3600.0 * (i[3] - i[1]) / (i[2] - i[0]), i[5])
                 d_t += i[2] - i[0]
                 d_s += i[3] - i[1]
                 
