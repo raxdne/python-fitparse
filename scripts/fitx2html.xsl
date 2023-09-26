@@ -146,6 +146,71 @@
     </xsl:element>
   </xsl:template>
 
+  <xsl:template match="pie/dir">
+    <xsl:element name="table">
+      <xsl:attribute name="id">
+	<xsl:value-of select="''"/>
+      </xsl:attribute>
+      <xsl:element name="thead">
+	<xsl:element name="tr">
+	  <xsl:element name="th">File</xsl:element>
+	  <xsl:for-each select="descendant::fit[1]/session[1]">
+	    <xsl:for-each select="*[not(contains(name(),'enhanced'))]">
+	      <xsl:sort select="@unit" order="descending"/>
+	      <xsl:sort select="name()" order="descending"/>
+	      <xsl:element name="th">
+		<xsl:value-of select="name()"/>
+	      </xsl:element>
+	    </xsl:for-each>
+	  </xsl:for-each>
+	</xsl:element>
+      </xsl:element>
+      <xsl:element name="tbody">
+	<xsl:for-each select="descendant::fit">
+	  <xsl:sort select="@src" order="descending"/>
+	  <xsl:call-template name="META_ROW"/>
+	</xsl:for-each>
+      </xsl:element>
+    </xsl:element>
+
+    <xsl:element name="table">
+      <xsl:attribute name="id">
+	<xsl:value-of select="@src"/>
+      </xsl:attribute>
+      <xsl:element name="thead">
+	<xsl:element name="tr">
+	  <xsl:element name="th">File</xsl:element>
+	  <xsl:element name="th">Meta</xsl:element>
+	  <xsl:element name="th">HR</xsl:element>
+	</xsl:element>
+      </xsl:element>
+      <xsl:element name="tbody">
+	<xsl:for-each select="descendant::fit">
+	  <xsl:sort select="session/total_distance" data-type="number" order="descending"/> <!-- total_timer_time -->
+	  <!-- <xsl:sort select="@src" order="descending"/> -->
+	  <xsl:element name="tr">
+	    <xsl:element name="td">
+	      <xsl:element name="a">
+		<xsl:attribute name="href">
+		  <xsl:value-of select="concat('/cxproc/exe?research=',parent::file/@name,'&amp;xsl=fitx2html')"/>
+		</xsl:attribute>
+		<xsl:value-of select="substring-before(@src,'_')"/>
+	      </xsl:element>
+	    </xsl:element>
+	    <xsl:element name="td">
+	      <xsl:call-template name="META_TABLE">
+		<xsl:with-param name="flag_details" select="false()"/>
+	      </xsl:call-template>
+	    </xsl:element>
+	    <xsl:element name="td">
+              <xsl:call-template name="HR_HISTOGRAM"/>
+	    </xsl:element>
+	  </xsl:element>
+	</xsl:for-each>
+      </xsl:element>
+    </xsl:element>
+  </xsl:template>
+
   <xsl:template match="fit">
     <xsl:element name="h1">
       <xsl:value-of select="@src"/>
@@ -249,6 +314,7 @@
   </xsl:template>
 
   <xsl:template name="META_TABLE">
+    <xsl:param name="flag_details" select="true()"/>
     <xsl:for-each select="session">
       <xsl:element name="table">
 	<xsl:attribute name="id">meta_table</xsl:attribute>
@@ -260,7 +326,7 @@
 	  </xsl:element>
 	</xsl:element>
 	<xsl:element name="tbody">
-	  <xsl:for-each select="*[not(contains(name(),'enhanced'))]">
+	  <xsl:for-each select="*[not(contains(name(),'enhanced')) and ($flag_details or contains(name(),'heart') or contains(name(),'speed') or contains(name(),'distance') or contains(name(),'total_timer_time'))]">
 	    <xsl:sort select="@unit" order="descending"/>
 	    <xsl:element name="tr">
 	      <xsl:choose>
@@ -315,6 +381,52 @@
 	</xsl:element>
       </xsl:element>
     </xsl:for-each>
+  </xsl:template>
+
+  <xsl:template name="META_ROW">
+    <xsl:param name="flag_details" select="true()"/>
+    <xsl:element name="tr">
+      <xsl:element name="td">
+	<xsl:element name="a">
+	  <xsl:attribute name="href">
+	    <xsl:value-of select="concat('/cxproc/exe?research=',parent::file/@name,'&amp;xsl=fitx2html')"/>
+	  </xsl:attribute>
+	  <xsl:value-of select="substring-before(@src,'_')"/>
+	</xsl:element>
+      </xsl:element>
+      <xsl:for-each select="session">
+	<xsl:for-each select="*[not(contains(name(),'enhanced')) and ($flag_details or contains(name(),'heart') or contains(name(),'speed') or contains(name(),'distance') or contains(name(),'total_timer_time'))]">
+	  <xsl:sort select="@unit" order="descending"/>
+	  <xsl:sort select="name()" order="descending"/>
+	  <xsl:element name="td">
+	    <xsl:choose>
+	      <xsl:when test="contains(name(),'heart')">
+		<xsl:value-of select="format-number(.,'###','f1')"/> <!--  -->
+	      </xsl:when>
+	      <xsl:when test="contains(name(),'speed')">
+		<xsl:value-of select="."/>
+	      </xsl:when>
+	      <xsl:when test="contains(name(),'time') and @sec">
+		<xsl:value-of select="."/>
+	      </xsl:when>
+	      <xsl:when test="contains(name(),'time') and @unit = 's'">
+		<xsl:value-of select="concat(.,' ≌ ')"/>
+		<xsl:call-template name="ISOTIME">
+		  <xsl:with-param name="s" select="."/>
+		</xsl:call-template>
+	      </xsl:when>
+	      <xsl:when test="contains(name(),'distance')">
+		<xsl:value-of select="format-number(.,'###,###','s1')"/> <!--  -->
+	      </xsl:when>
+	      <xsl:otherwise>
+		<xsl:value-of select="."/>
+	      </xsl:otherwise>
+	    </xsl:choose>
+	    <xsl:value-of select="concat(' ',@unit)"/>
+	  </xsl:element>
+	</xsl:for-each>
+      </xsl:for-each>
+    </xsl:element>
   </xsl:template>
 
   <xsl:template name="LAP_TABLE">
