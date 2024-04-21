@@ -1,20 +1,26 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="utf-8"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:exsl="http://exslt.org/common" xmlns:exsl-math="http://exslt.org/math" version="1.0">
 
   <!-- REQ: detect pause intervals via speed or HR -->
 
   <xsl:output method="html" encoding="utf-8"/>
 
+  <xsl:decimal-format name="f1" grouping-separator="," decimal-separator="."/>
+
+  <xsl:decimal-format name="s1" grouping-separator="," decimal-separator="."/>
+
+  <xsl:decimal-format name="t1" grouping-separator="," />
+
   <!-- intervals -->
-  
+
   <xsl:variable name="int_p0" select="1"/> <!-- first record position -->
-  
+
   <xsl:variable name="int_p1" select="0"/> <!-- last record position -->
 
   <xsl:variable name="int_t0" select="//fit[1]/descendant::record[position() = $int_p0]/timestamp/@sec"/> <!-- start second -->
 
   <xsl:variable name="int_tmax" select="$int_t0 + 4 * 3600"/> <!-- max seconds -->
-  
+
   <xsl:variable name="int_t1"> <!-- stop second -->
     <xsl:choose>
       <xsl:when test="//fit[1]/descendant::record[position() = last()]/timestamp/@sec &lt; $int_t0">
@@ -32,7 +38,7 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
-  
+
   <xsl:variable name="int_timer"> <!-- timer seconds -->
     <xsl:choose>
       <xsl:when test="count(//fit/session/total_timer_time) &gt; 1">
@@ -46,7 +52,7 @@
       </xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
-  
+
   <!-- heart rate ranges -->
 
   <xsl:variable name="int_hr_1"> <!-- upper threshold for a break -->
@@ -111,7 +117,7 @@
   </xsl:variable>
 
   <!-- altitudes -->
-  
+
   <xsl:variable name="int_alt_0">
     <xsl:for-each select="//altitude">
       <xsl:sort select="." data-type="number" order="descending"/>
@@ -132,26 +138,31 @@
 
   <xsl:variable name="int_height" select="900"/> <!-- diagram height -->
 
-  <xsl:decimal-format name="f1" grouping-separator="," decimal-separator="."/>
-  
-  <xsl:decimal-format name="s1" grouping-separator="," decimal-separator="."/>
-  
-  <xsl:decimal-format name="t1" grouping-separator="," />
-  
-  <xsl:template match="/pie/dir">
+  <xsl:variable name="float_median_min" select="0.0"/> <!-- lowest median value for global statistics -->
+
+  <xsl:variable name="float_median_max" select="0.0"/> <!-- highest median value for global statistics -->
+
+  <xsl:template match="/pie/dir"> <!-- overall statistics -->
+
+    <xsl:variable name="ns_fit" select="descendant::fit[($float_median_min &lt; 0.01 and $float_median_max &lt; 0.01) or ($float_median_min &gt; 0.0 and child::hist[@param='speed' and @median &gt; $float_median_min]) or ($float_median_max &gt; 0.0 and child::hist[@param='speed' and @median &lt; $float_median_max])]"/>
     
-    <xsl:variable name="ns_classes" select="/descendant::hist[@param='heart_rate']"/>
-  
+    <xsl:variable name="ns_classes" select="$ns_fit/hist[@param='heart_rate']"/>
+
+    <xsl:variable name="int_num" select="count($ns_classes)"/>
+
     <xsl:variable name="int_sum" select="sum($ns_classes//@n)"/>
-    
+
     <xsl:variable name="int_v_max" select="exsl-math:max($ns_classes//@max)"/>
-    
+
     <xsl:variable name="ns_heart">
       <xsl:element name="dynamic"> <!-- new tree for evaluation in HR_SUMMARY -->
 	<xsl:element name="hist">
 	  <xsl:attribute name="param">heart_rate</xsl:attribute>
 	  <xsl:attribute name="count">
 	    <xsl:value-of select="$int_sum"/>
+	  </xsl:attribute>
+	  <xsl:attribute name="n">
+	    <xsl:value-of select="$int_num"/>
 	  </xsl:attribute>
 	  <xsl:attribute name="max">
 	    <xsl:value-of select="$int_v_max"/>
@@ -183,30 +194,11 @@
         <xsl:call-template name="CREATESTYLE"/>
       </xsl:element>
       <xsl:element name="body">
-	<xsl:element name="table">
-	  <xsl:attribute name="id">meta_table</xsl:attribute>
-	  <xsl:element name="thead">
-	    <xsl:element name="tr">
-	      <xsl:element name="th">#</xsl:element>
-	      <xsl:element name="th">File</xsl:element>
-	      <xsl:for-each select="descendant::fit[1]/session[1]">
-		<xsl:for-each select="*[not(contains(name(),'enhanced'))]">
-		  <xsl:sort select="@unit" order="descending"/>
-		  <xsl:sort select="name()" order="descending"/>
-		  <xsl:element name="th">
-		    <xsl:value-of select="name()"/>
-		  </xsl:element>
-		</xsl:for-each>
-	      </xsl:for-each>
-	    </xsl:element>
-	  </xsl:element>
-	  <xsl:element name="tbody">
-	    <xsl:for-each select="descendant::fit">
-	      <xsl:sort select="@src" order="ascending"/>
-	      <xsl:call-template name="META_ROW"/>
-	    </xsl:for-each>
-	  </xsl:element>
-	</xsl:element>
+
+	<xsl:call-template name="META_TABLE_SUMMARY">
+	  <xsl:with-param name="flag_details" select="false()"/>
+	  <xsl:with-param name="ns_fit" select="$ns_fit"/>
+	</xsl:call-template>
 
 	<xsl:element name="table">
 	  <xsl:attribute name="id">
@@ -217,13 +209,14 @@
 	      <xsl:element name="th">File</xsl:element>
 	      <xsl:element name="th">Meta</xsl:element>
 	      <xsl:element name="th">HR</xsl:element>
+	      <xsl:element name="th">Speed</xsl:element>
 	    </xsl:element>
 	  </xsl:element>
 	  <xsl:element name="tbody">
             <xsl:call-template name="HR_SUMMARY">
 	      <xsl:with-param name="ns_heart" select="exsl:node-set($ns_heart)/dynamic"/>
 	    </xsl:call-template>
-	    <xsl:for-each select="descendant::fit">
+	    <xsl:for-each select="$ns_fit">
 	      <xsl:sort select="@src" order="ascending"/>
 	      <!-- <xsl:sort select="session/total_distance" data-type="number" order="descending"/> --> <!-- total_timer_time -->
 	      <xsl:element name="tr">
@@ -247,6 +240,9 @@
 		</xsl:element>
 		<xsl:element name="td">
 		  <xsl:call-template name="HR_HISTOGRAM"/>
+		</xsl:element>
+		<xsl:element name="td">
+		  <xsl:call-template name="SPEED_HISTOGRAM"/>
 		</xsl:element>
 	      </xsl:element>
 	    </xsl:for-each>
@@ -289,7 +285,7 @@
 	  <xsl:value-of select="concat('Heart rate values [bpm]: ',$int_hr_1,', ',$int_hr_2,', ',$int_hr_3,', ',$int_hr_4,'&#10;')"/>
 	  <xsl:value-of select="concat('Speed values [km/h]: ',$int_v_1,', ',$int_v_2,', ',$int_v_3,'&#10;')"/>
 	</xsl:comment>
-	
+
 	<xsl:element name="h2">
 	  <xsl:element name="a">
 	    <xsl:text>Meta Data &amp; Heart Rate Histogram</xsl:text>
@@ -302,7 +298,7 @@
 	    <xsl:attribute name="style">display:inline-block</xsl:attribute>
 	    <xsl:call-template name="META_TABLE"/>
 	  </xsl:element>
-	  
+
 	  <xsl:if test="hist[@param='heart_rate']">
 	    <xsl:element name="div">
 	      <xsl:attribute name="style">display:inline-block</xsl:attribute>
@@ -310,7 +306,7 @@
 	    </xsl:element>
 	  </xsl:if>
 	</xsl:element>
-	
+
 	<xsl:if test="hist[@param='speed']">
 	  <xsl:element name="h2">
 	    <xsl:element name="a">
@@ -320,7 +316,7 @@
 	  </xsl:element>
 	  <xsl:call-template name="SPEED_HISTOGRAM"/>
 	</xsl:if>
-	
+
 	<xsl:if test="hist[@param='heart_rate_intervals']">
 	  <xsl:element name="h2">
 	    <xsl:element name="a">
@@ -330,7 +326,7 @@
 	  </xsl:element>
 	  <xsl:call-template name="INTERVAL_TABLE"/>
 	</xsl:if>
-	
+
 	<xsl:if test="count(record) &gt; 10">
 	  <xsl:element name="h2">
 	    <xsl:element name="a">
@@ -356,7 +352,7 @@
 	  </xsl:element>
 	  <xsl:call-template name="RECORD_TABLE"/>
 	</xsl:if>
-	
+
 	<xsl:call-template name="CREATESCRIPT"/>
       </xsl:element>
     </xsl:element>
@@ -433,7 +429,7 @@
   </xsl:template>
 
   <xsl:template name="META_ROW">
-    <xsl:param name="flag_details" select="true()"/>
+    <xsl:param name="flag_details" select="false()"/>
     <xsl:element name="tr">
       <xsl:element name="td">
 	<xsl:value-of select="position()"/>
@@ -479,6 +475,64 @@
 	  </xsl:element>
 	</xsl:for-each>
       </xsl:for-each>
+    </xsl:element>
+  </xsl:template>
+
+  <xsl:template name="META_TABLE_SUMMARY">
+    <xsl:param name="flag_details" select="true()"/>
+    <xsl:param name="ns_fit"/>
+    
+    <xsl:element name="table">
+      <xsl:attribute name="id">meta_table</xsl:attribute>
+      <xsl:element name="thead">
+	<xsl:element name="tr">
+	  <xsl:element name="th">#</xsl:element>
+	  <xsl:element name="th">File</xsl:element>
+	  <xsl:for-each select="$ns_fit[1]/session">
+	    <xsl:for-each select="*[not(contains(name(),'enhanced')) and ($flag_details or contains(name(),'heart') or contains(name(),'speed') or contains(name(),'distance') or contains(name(),'total_timer_time'))]">
+	      <xsl:sort select="@unit" order="descending"/>
+	      <xsl:sort select="name()" order="descending"/>
+	      <xsl:element name="th">
+		<xsl:value-of select="name()"/>
+	      </xsl:element>
+	    </xsl:for-each>
+	  </xsl:for-each>
+	</xsl:element>
+      </xsl:element>
+      <xsl:element name="tbody">
+	<xsl:for-each select="$ns_fit"> <!-- one row per session -->
+	  <xsl:sort select="@src" order="ascending"/>
+	  <xsl:call-template name="META_ROW">
+	    <xsl:with-param name="flag_details" select="$flag_details"/>
+	  </xsl:call-template>
+	</xsl:for-each>
+	<xsl:element name="tr">	<!-- summary row -->
+	  <xsl:element name="th">
+	  </xsl:element>
+	  <xsl:element name="th">
+	  </xsl:element>
+	  <xsl:for-each select="$ns_fit[1]/session">
+	    <xsl:for-each select="*[not(contains(name(),'enhanced')) and ($flag_details or contains(name(),'heart') or contains(name(),'speed') or contains(name(),'distance') or contains(name(),'total_timer_time'))]">
+	      <xsl:sort select="@unit" order="descending"/>
+	      <xsl:sort select="name()" order="descending"/>
+	      <xsl:element name="th">
+		<xsl:choose>
+		  <xsl:when test="name() = 'total_timer_time'">
+		    <xsl:call-template name="ISOTIME">
+		      <xsl:with-param name="s" select="sum($ns_fit/session/total_timer_time)"/>
+		    </xsl:call-template>
+		  </xsl:when>
+		  <xsl:when test="name() = 'total_distance'">
+		    <xsl:value-of select="concat(' ',format-number(sum($ns_fit/session/total_distance),'###,###','s1'), ' ',$ns_fit/session[1]/total_distance/@unit)"/>
+		  </xsl:when>
+		  <xsl:otherwise>
+		  </xsl:otherwise>
+		</xsl:choose>
+	      </xsl:element>
+	    </xsl:for-each>
+	  </xsl:for-each>
+	</xsl:element>
+      </xsl:element>
     </xsl:element>
   </xsl:template>
 
@@ -608,7 +662,7 @@
   <xsl:template name="RECORD_DIAGRAM">
 
     <xsl:variable name="int_width" select="$int_t1 - $int_t0 + 100"/>
-    
+
     <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
       <xsl:attribute name="version">1.1</xsl:attribute>
       <xsl:attribute name="baseProfile">full</xsl:attribute>
@@ -619,7 +673,7 @@
       <xsl:element name="title">
 	<xsl:value-of select="concat('Diagram: ', $int_t0, 's .. ', $int_t1,'s')"/>
       </xsl:element>
-      
+
       <xsl:element name="rect">
 	<xsl:attribute name="fill">#ffcccc</xsl:attribute>
 	<xsl:attribute name="x"><xsl:value-of select="0"/></xsl:attribute>
@@ -733,10 +787,10 @@
 
       <xsl:for-each select="record[timestamp/@sec &gt; $int_t0 and timestamp/@sec &lt; $int_t1]">
 	<xsl:variable name="int_x" select="timestamp/@sec - $int_t0"/>
-	
+
 	<xsl:for-each select="speed">
 	  <xsl:variable name="int_y" select="$int_height - format-number(. * 2,'#,')"/>
-	
+
 	  <xsl:element name="line">
 	    <xsl:attribute name="stroke">#ccccff</xsl:attribute>
 	    <xsl:attribute name="stroke-width">1</xsl:attribute>
@@ -754,7 +808,7 @@
 
 	<xsl:for-each select="heart_rate">
 	  <xsl:variable name="int_y" select="$int_height - format-number(.,'#,')"/>
-	
+
 	  <xsl:element name="circle">
 	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
 	    <xsl:attribute name="cx"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -768,10 +822,10 @@
 	    </xsl:element>
 	  </xsl:element>
 	</xsl:for-each>
-	
+
 	<xsl:for-each select="altitude">
 	  <xsl:variable name="int_y" select="$int_height - format-number(.,'#,')"/>
-	
+
 	  <xsl:element name="circle">
 	    <xsl:attribute name="stroke">#00ff00</xsl:attribute>
 	    <xsl:attribute name="cx"><xsl:value-of select="$int_x"/></xsl:attribute>
@@ -782,12 +836,12 @@
 	    </xsl:element>
 	  </xsl:element>
 	</xsl:for-each>
-	
+
       </xsl:for-each>
 
       <xsl:for-each select="lap[timestamp/@sec &gt; $int_t0 and timestamp/@sec &lt; $int_t1]">
 	<xsl:variable name="int_x" select="timestamp/@sec - $int_t0"/>
-	
+
 	<xsl:element name="line">
 	  <xsl:attribute name="stroke">black</xsl:attribute>
 	  <xsl:attribute name="stroke-width">.5</xsl:attribute>
@@ -992,7 +1046,7 @@
     <xsl:variable name="int_scale" select="3.0"/>
     <xsl:variable name="int_width" select="200"/>
     <xsl:variable name="int_height" select="100"/>
-    
+
     <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
       <xsl:attribute name="version">1.1</xsl:attribute>
       <xsl:attribute name="baseProfile">full</xsl:attribute>
@@ -1006,15 +1060,15 @@
 	</xsl:attribute>
 
 	<xsl:for-each select="hist[@param='heart_rate']">
-	  
+
 	  <xsl:variable name="int_timer" select="@count"/> <!--  -->
-	  
+
 	  <xsl:variable name="int_hr_min" select="number(c[1]/@v)"/>
-	  
+
 	  <xsl:variable name="int_hr_scale" select="$int_width div ($int_hr_3 - $int_hr_min)"/>
-	  
+
 	  <xsl:variable name="int_bar_width" select="c[2]/@v - c[1]/@v"/>
-	  
+
 	  <xsl:element name="rect">
 	    <xsl:attribute name="fill">#ccffcc</xsl:attribute>
 	    <xsl:attribute name="x"><xsl:value-of select="($int_hr_1 - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
@@ -1025,7 +1079,7 @@
 	      <xsl:value-of select="concat('Endurance zone: ', $int_hr_1, ' .. ', $int_hr_2)"/>
 	    </xsl:element>
 	  </xsl:element>
-	  
+
 	  <xsl:element name="rect">
 	    <xsl:attribute name="fill">#ffcccc</xsl:attribute>
 	    <xsl:attribute name="x"><xsl:value-of select="($int_hr_2 - $int_hr_min) * $int_hr_scale"/></xsl:attribute>
@@ -1094,7 +1148,7 @@
 	  <xsl:for-each select="child::c">
 	    <xsl:variable name="int_x" select="(number(@v) - $int_hr_min) * $int_hr_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
-	    
+
 	    <xsl:if test="@n &gt; 0">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#ff8888</xsl:attribute>
@@ -1147,6 +1201,24 @@
       <xsl:element name="tr">
 	<xsl:element name="td">Summary</xsl:element>
 	<xsl:element name="td">
+	    <xsl:for-each select="hist">
+	      <xsl:value-of select="concat('Summary of ',@n,' units')"/>
+	      <xsl:choose>
+		<xsl:when test="$float_median_min &gt; 0.0">
+		  <xsl:value-of select="concat(' &gt; ',' ',$float_median_min,' km/h') "/>
+		</xsl:when>
+		<xsl:when test="$float_median_max &gt; 0.0">
+		  <xsl:value-of select="concat(' &lt; ',' ',$float_median_max,' km/h') "/>
+		</xsl:when>
+		<xsl:otherwise>
+		</xsl:otherwise>
+	      </xsl:choose>
+	      <xsl:text>, </xsl:text>
+	      <xsl:call-template name="ISOTIME">
+		<xsl:with-param name="s" select="@count"/>
+	      </xsl:call-template>
+	      <xsl:value-of select="concat(', max. ',@max,'bpm')"/>
+	    </xsl:for-each>
 	  <xsl:if test="false()">
 	    <xsl:for-each select="hist">
 	      <xsl:element name="table">
@@ -1203,6 +1275,8 @@
 	<xsl:element name="td">
 	  <xsl:call-template name="HR_HISTOGRAM"/>
 	</xsl:element>
+	<xsl:element name="td">
+	</xsl:element>
       </xsl:element>
     </xsl:for-each>
   </xsl:template>
@@ -1212,7 +1286,7 @@
     <xsl:variable name="int_scale" select="3.0"/>
     <xsl:variable name="int_width" select="300"/>
     <xsl:variable name="int_height" select="100"/>
-    
+
     <xsl:element name="svg" xmlns="http://www.w3.org/2000/svg">
       <xsl:attribute name="version">1.1</xsl:attribute>
       <xsl:attribute name="baseProfile">full</xsl:attribute>
@@ -1226,13 +1300,13 @@
 	</xsl:attribute>
 
 	<xsl:for-each select="hist[@param='speed']">
-	  
+
 	  <xsl:variable name="int_v_min" select="number(c[1]/@v)"/>
-	  
+
 	  <xsl:variable name="int_v_scale" select="$int_width div ($int_v_3 - $int_v_min)"/>
-	  
+
 	  <xsl:variable name="int_bar_width" select="c[2]/@v - c[1]/@v"/>
-	  
+
 	  <xsl:element name="line">
 	    <xsl:attribute name="stroke">#ff0000</xsl:attribute>
 	    <xsl:attribute name="stroke-width">.25</xsl:attribute>
@@ -1290,7 +1364,7 @@
 	  <xsl:for-each select="child::c">
 	    <xsl:variable name="int_x" select="(number(@v) - $int_v_min) * $int_v_scale"/>
 	    <xsl:variable name="int_y" select="number(.) * 100"/>
-	    
+
 	    <xsl:if test="@n &gt; 0">
 	      <xsl:element name="rect">
 		<xsl:attribute name="fill">#aaaaaa</xsl:attribute>
@@ -1389,17 +1463,11 @@
   <xsl:template name="CREATESTYLE">
     <xsl:element name="style">
 
-body,table {
-  background-color:#ffffff;
-  font-family: Arial,sans-serif;
-  /* font-family:Courier; */
-  font-size:12px;
-}
-
 /* settings for tables
  */
 
 table {
+  margin: 4px;
   border-collapse: collapse;
   empty-cells:show;
 }
@@ -1493,7 +1561,7 @@ svg {
   font-family: Arial; font-size: 8pt;
 }
 
-#v_histogram, #diagram, #interval_table, #lap_table, #record_table {
+#diagram, #interval_table, #lap_table, #record_table {
   display:none;
 }
     </xsl:element>
@@ -1521,7 +1589,7 @@ svg {
   $(function() {
 
   // initial sort set using sortList option
-  
+
   $("#meta_table, #interval_table, #lap_table, #record_table").tablesorter({
     widgets: ["filter"],
     widgetOptions : {
@@ -1531,7 +1599,7 @@ svg {
 
 
   });
-  
+
 //
 //
 //
