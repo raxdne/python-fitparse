@@ -483,7 +483,7 @@
     <xsl:param name="ns_fit"/>
     
     <xsl:element name="table">
-      <xsl:attribute name="id">meta_table</xsl:attribute>
+      <xsl:attribute name="id">meta_table_summary</xsl:attribute>
       <xsl:element name="thead">
 	<xsl:element name="tr">
 	  <xsl:element name="th">#</xsl:element>
@@ -539,19 +539,21 @@
   <xsl:template name="LAP_TABLE">
     <xsl:element name="table">
       <xsl:attribute name="id">lap_table</xsl:attribute>
+      <xsl:element name="thead">
+	<xsl:for-each select="lap[1]">
+	<xsl:element name="tr">
+	  <xsl:element name="th">lap</xsl:element>
+	  <xsl:for-each select="start_time|total_elapsed_time|total_distance|avg_heart_rate|avg_speed|max_speed|max_heart_rate">
+	    <xsl:sort select="name()"/>
+	    <xsl:element name="th">
+	      <xsl:value-of select="concat(name(),' [', @unit,']')"/>
+	    </xsl:element>
+	  </xsl:for-each>
+	</xsl:element>
+	</xsl:for-each>
+      </xsl:element>
       <xsl:element name="tbody">
 	<xsl:for-each select="lap">
-	  <xsl:if test="position()=1">
-	    <xsl:element name="tr">
-	      <xsl:element name="th">lap</xsl:element>
-	      <xsl:for-each select="start_time|total_elapsed_time|total_distance|avg_heart_rate|avg_speed|max_speed|max_heart_rate">
-		<xsl:sort select="name()"/>
-		<xsl:element name="th">
-		  <xsl:value-of select="concat(name(),' [', @unit,']')"/>
-		</xsl:element>
-	      </xsl:for-each>
-	    </xsl:element>
-	  </xsl:if>
 	  <xsl:element name="tr">
 	    <xsl:element name="td">
               <xsl:value-of select="position()"/>
@@ -1201,76 +1203,24 @@
       <xsl:element name="tr">
 	<xsl:element name="td">Summary</xsl:element>
 	<xsl:element name="td">
-	    <xsl:for-each select="hist">
-	      <xsl:value-of select="concat('Summary of ',@n,' units')"/>
-	      <xsl:choose>
-		<xsl:when test="$float_median_min &gt; 0.0">
-		  <xsl:value-of select="concat(' &gt; ',' ',$float_median_min,' km/h') "/>
-		</xsl:when>
-		<xsl:when test="$float_median_max &gt; 0.0">
-		  <xsl:value-of select="concat(' &lt; ',' ',$float_median_max,' km/h') "/>
-		</xsl:when>
-		<xsl:otherwise>
-		</xsl:otherwise>
-	      </xsl:choose>
-	      <xsl:text>, </xsl:text>
-	      <xsl:call-template name="ISOTIME">
-		<xsl:with-param name="s" select="@count"/>
-	      </xsl:call-template>
-	      <xsl:value-of select="concat(', max. ',@max,'bpm')"/>
-	    </xsl:for-each>
-	  <xsl:if test="false()">
-	    <xsl:for-each select="hist">
-	      <xsl:element name="table">
-		<xsl:element name="tbody">
-		  <xsl:element name="tr">
-		    <xsl:element name="th">Class</xsl:element>
-		    <xsl:element name="th">
-		      <xsl:value-of select="concat('Count ','(∑ ',format-number(@count,'#,###,###','f1'),')')"/>
-		    </xsl:element>
-		    <xsl:element name="th">
-		      <xsl:call-template name="ISOTIME">
-			<xsl:with-param name="s" select="@count"/>
-		      </xsl:call-template>
-		    </xsl:element>
-		    <xsl:element name="th">Percentage</xsl:element>
-		    <xsl:element name="th">Accumulated Percentage</xsl:element>
-		  </xsl:element>
-		  <xsl:for-each select="c">
-		    <xsl:element name="tr">
-		      <xsl:choose>
-			<xsl:when test="@v &gt; $int_hr_2">
-			  <xsl:attribute name="bgcolor">#ffcccc</xsl:attribute>
-			</xsl:when>
-			<xsl:when test="@v &gt; $int_hr_1">
-			  <xsl:attribute name="bgcolor">#ccffcc</xsl:attribute>
-			</xsl:when>
-			<xsl:otherwise>
-			</xsl:otherwise>
-		      </xsl:choose>
-		      <xsl:element name="td">
-			<xsl:value-of select="@v"/>
-		      </xsl:element>
-		      <xsl:element name="td">
-			<xsl:value-of select="format-number(@n,'#,###,###','f1')"/>
-		      </xsl:element>
-		      <xsl:element name="td">
-			<xsl:call-template name="ISOTIME">
-			  <xsl:with-param name="s" select="@n"/>
-			</xsl:call-template>
-		      </xsl:element>
-		      <xsl:element name="td">
-			<xsl:value-of select="format-number(.,'0.0000','f1')"/>
-		      </xsl:element>
-		      <xsl:element name="td">
-			<xsl:value-of select="format-number(@sum,'0.0000','f1')"/>
-		      </xsl:element>
-		    </xsl:element>
-		  </xsl:for-each>
-		</xsl:element>
-	      </xsl:element>
-	    </xsl:for-each>
-	  </xsl:if>
+	  <xsl:for-each select="hist">
+	    <xsl:value-of select="concat('Summary of ',@n,' units')"/>
+	    <xsl:choose>
+	      <xsl:when test="$float_median_min &gt; 0.0">
+		<xsl:value-of select="concat(' &gt; ',' ',$float_median_min,' km/h') "/>
+	      </xsl:when>
+	      <xsl:when test="$float_median_max &gt; 0.0">
+		<xsl:value-of select="concat(' &lt; ',' ',$float_median_max,' km/h') "/>
+	      </xsl:when>
+	      <xsl:otherwise>
+	      </xsl:otherwise>
+	    </xsl:choose>
+	    <xsl:text>, </xsl:text>
+	    <xsl:call-template name="ISOTIME">
+	      <xsl:with-param name="s" select="@count"/>
+	    </xsl:call-template>
+	    <xsl:value-of select="concat(', max. ',@max,'bpm')"/>
+	  </xsl:for-each>
 	</xsl:element>
 	<xsl:element name="td">
 	  <xsl:call-template name="HR_HISTOGRAM"/>
@@ -1547,18 +1497,8 @@ p {
  margin: 3px 2px 3px 1px;
 }
 
-pre {
-  background-color: #f8f8f8;
-  border: 1px solid #cccccc;
-  font-size: 13px;
-  line-height: 19px;
-  overflow: auto;
-  padding: 6px 10px;
-  border-radius: 3px;
-}
-
 svg {
-  font-family: Arial; font-size: 8pt;
+  //font-family: Arial; font-size: 8pt;
 }
 
 #diagram, #interval_table, #lap_table, #record_table {
@@ -1570,7 +1510,11 @@ svg {
 <xsl:template name="CREATESCRIPT">
   <xsl:element name="link">
     <xsl:attribute name="rel">stylesheet</xsl:attribute>
-    <xsl:attribute name="href">/jquery/tablesorter/css/YYY.theme.blue.css</xsl:attribute>
+    <xsl:attribute name="href">/jquery/tablesorter/css/theme.ice.min.css</xsl:attribute>
+  </xsl:element>
+  <xsl:element name="link">
+    <xsl:attribute name="rel">stylesheet</xsl:attribute>
+    <xsl:attribute name="href">/jquery/tablesorter/css/widget.grouping.min.css</xsl:attribute>
   </xsl:element>
   <xsl:element name="script">
     <xsl:attribute name="type">text/javascript</xsl:attribute>
@@ -1590,7 +1534,8 @@ svg {
 
   // initial sort set using sortList option
 
-  $("#meta_table, #interval_table, #lap_table, #record_table").tablesorter({
+  $("#meta_table_summary, #interval_table, #lap_table, #record_table").tablesorter({
+    theme : 'ice',
     widgets: ["filter"],
     widgetOptions : {
       filter_ignoreCase : true
